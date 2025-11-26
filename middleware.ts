@@ -1,36 +1,36 @@
-// middleware.ts
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+
+const PUBLIC_FILE = /\.(.*)$/;
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Always allow these paths without auth
+  // Allow public assets, landing page, APIs, and Next internals
   if (
-    pathname.startsWith("/landing") ||
-    pathname.startsWith("/api/login") ||
+    pathname.startsWith("/api") ||
     pathname.startsWith("/_next") ||
-    pathname.startsWith("/favicon") ||
-    pathname.startsWith("/public")
+    pathname.startsWith("/landing") ||
+    pathname === "/favicon.ico" ||
+    PUBLIC_FILE.test(pathname)
   ) {
     return NextResponse.next();
   }
 
-  const auth = req.cookies.get("cvagent_auth");
-
-  if (auth?.value === "true") {
-    // Already authenticated
+  // Check the auth cookie set by the landing page
+  const authCookie = req.cookies.get("cv-agent-auth");
+  if (authCookie?.value === "1") {
     return NextResponse.next();
   }
 
-  // Not authenticated → redirect to /landing and keep the original destination
-  const loginUrl = req.nextUrl.clone();
-  loginUrl.pathname = "/landing";
-  loginUrl.searchParams.set("redirect", pathname || "/");
-  return NextResponse.redirect(loginUrl);
+  // Not authenticated → send to landing
+  const redirectUrl = req.nextUrl.clone();
+  redirectUrl.pathname = "/landing";
+  redirectUrl.searchParams.set("redirect", pathname || "/");
+
+  return NextResponse.redirect(redirectUrl);
 }
 
-// Apply to everything except Next.js internals and static assets
+// Apply middleware to everything except static assets
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
