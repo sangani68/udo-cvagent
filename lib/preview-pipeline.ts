@@ -40,7 +40,8 @@ export async function localizeCvData(data: CvData, to: Lang): Promise<CvData> {
 
   if (!endpoint || !key) return data;
 
-  const out: CvData = JSON.parse(JSON.stringify(data || {}));
+  // use `any` internally to avoid complaining about partial candidate shapes
+  const out: any = JSON.parse(JSON.stringify(data || {}));
   const c: any = out.candidate || (out.candidate = {});
 
   const bag: string[] = [];
@@ -108,7 +109,7 @@ export async function localizeCvData(data: CvData, to: Lang): Promise<CvData> {
     });
   });
 
-  if (bag.length === 0) return out;
+  if (bag.length === 0) return out as CvData;
 
   const translated = await translateMany(bag, lang, { endpoint, key, region });
 
@@ -118,7 +119,7 @@ export async function localizeCvData(data: CvData, to: Lang): Promise<CvData> {
     k++;
   }
 
-  return out;
+  return out as CvData;
 }
 
 // Legacy helper kept for compatibility (now translates on normalized CvData)
@@ -167,9 +168,19 @@ function safeName(src: { candidate?: any } | undefined, fallbackCv?: any): strin
    (mask → normalize → translate → guard)
    ───────────────────────────── */
 export async function buildViewData(opts: {
-  data?: any; cv?: any; template?: string; templateId?: string;
-  locale?: string; maskPersonal?: boolean;
-}): Promise<{ data: CvData; cv: CVJson; template: string; locale: string; mask: boolean; }> {
+  data?: any;
+  cv?: any;
+  template?: string;
+  templateId?: string;
+  locale?: string;
+  maskPersonal?: boolean;
+}): Promise<{
+  data: CvData;
+  cv: CVJson;
+  template: string;
+  locale: string;
+  mask: boolean;
+}> {
   const template = (opts.templateId || opts.template || "pdf-kyndryl") as string;
   const locale = (opts.locale || "en").toLowerCase();
   const mask = !!opts.maskPersonal;
@@ -193,11 +204,18 @@ export async function buildViewData(opts: {
       ...(translated?.candidate ?? {}),
       name: safeName(translated, cv),
     },
-    experience: Array.isArray((translated as any).experience) ? (translated as any).experience : [],
-    education: Array.isArray((translated as any).education) ? (translated as any).education : [],
+    // keep these top-level arrays tolerant; templates mostly use candidate.*
+    experience: Array.isArray((translated as any).experience)
+      ? (translated as any).experience
+      : [],
+    education: Array.isArray((translated as any).education)
+      ? (translated as any).education
+      : [],
     skills: Array.isArray((translated as any).skills) ? (translated as any).skills : [],
-    languages: Array.isArray((translated as any).languages) ? (translated as any).languages : [],
-  };
+    languages: Array.isArray((translated as any).languages)
+      ? (translated as any).languages
+      : [],
+  } as any;
 
   return { data, cv, template, locale, mask };
 }
@@ -236,7 +254,10 @@ async function translateMany(
     if (cfg.region) headers["Ocp-Apim-Subscription-Region"] = cfg.region;
 
     const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
-    if (!res.ok) { out.push(...chunk); continue; }
+    if (!res.ok) {
+      out.push(...chunk);
+      continue;
+    }
 
     const data = await res.json();
     const chunkOut = (Array.isArray(data) ? data : []).map((item: any, idx: number) =>

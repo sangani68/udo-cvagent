@@ -12,29 +12,36 @@ export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json().catch(() => ({}));
+    const body = await req.json().catch(() => ({} as any));
 
-    // 🔁 Single source of truth: mask → normalize → deep-translate
-    const { data, template } = await buildViewData(body);
-    // `data` is CvData (candidate, experience, education, skills, languages,…)
+    const template =
+      (body.templateId || body.template || "pdf-kyndryl") as string;
 
-    // ── PDF templates (React-PDF, same as your frozen version) ──
+    // Use the unified preview pipeline (mask → normalize → translate)
+    const { data } = await buildViewData({
+      ...body,
+      template,
+      templateId: template,
+    });
+
+    // ── PDF templates (React-PDF, Kyndryl & Europass) ──
     if (template === "pdf-kyndryl") {
-      const stream = await renderToStream(React.createElement(KyndrylPDF as any, { data }));
+      const element = React.createElement(KyndrylPDF as any, { data });
+      const stream = await (renderToStream as any)(element);
       return new Response(stream as any, {
         headers: { "Content-Type": "application/pdf" },
       });
     }
 
     if (template === "pdf-europass") {
-      const stream = await renderToStream(React.createElement(EuropassPDF as any, { data }));
+      const element = React.createElement(EuropassPDF as any, { data });
+      const stream = await (renderToStream as any)(element);
       return new Response(stream as any, {
         headers: { "Content-Type": "application/pdf" },
       });
     }
 
     // ── Everything else (DOCX / PPTX) → HTML snapshot ──
-    // For "docx-ep" this uses the EP Form 6 HTML we wired in lib/htmlPreview.ts
     const html = await buildHtmlPreview(data, template);
     return new Response(html, {
       headers: { "Content-Type": "text/html; charset=utf-8" },

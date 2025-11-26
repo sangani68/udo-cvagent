@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import type { CVJson } from "../lib/cvSchema";
+import type { CVJson } from "@/lib/cvSchema";
 
 type Props = {
   value: CVJson | null;

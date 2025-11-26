@@ -14,6 +14,7 @@ import {
   WidthType,
   AlignmentType,
   HeadingLevel,
+  DeletedTextRun,
   BorderStyle,
 } from "docx";
 
@@ -25,8 +26,8 @@ type Body = {
   cv?: any;
   locale?: string;
   maskPersonal?: boolean;
-  template?: string;    // "docx-ep"
-  templateId?: string;  // "docx-ep"
+  template?: string; // "docx-ep"
+  templateId?: string; // "docx-ep"
 };
 
 const S = (v: any, fb = "") => (v == null ? fb : String(v).trim() || fb);
@@ -75,7 +76,9 @@ async function proofreadCv(
 
     // Guard: if there's no candidate name after proofreading, stick to original
     if (!cleaned || typeof cleaned !== "object" || !cleaned.candidate?.name) {
-      console.warn("EP DOCX proofread produced no candidate.name, using original CV");
+      console.warn(
+        "EP DOCX proofread produced no candidate.name, using original CV"
+      );
       return original;
     }
 
@@ -91,11 +94,15 @@ function infoRow(label: string, value: string) {
   return new TableRow({
     children: [
       new TableCell({
-        children: [new Paragraph({ text: label, bold: true })],
+        children: [
+          new Paragraph({
+            children: [new TextRun({ text: label, bold: true })],
+          }),
+        ],
         width: { size: 40, type: WidthType.PERCENTAGE },
       }),
       new TableCell({
-        children: [new Paragraph({ text: value || "" })],
+        children: [new Paragraph({ text: value ?? "" })],
         width: { size: 60, type: WidthType.PERCENTAGE },
       }),
     ],
@@ -108,10 +115,12 @@ function multilineParagraph(text: string | undefined | null) {
   if (!t) return new Paragraph("");
   const lines = t.split(/\r?\n/);
   return new Paragraph({
-    children: lines.flatMap((line, idx) => [
-      idx > 0 ? new TextRun({ text: "\n" }) : undefined,
-      new TextRun({ text: line }),
-    ]).filter(Boolean) as TextRun[],
+    children: lines
+      .flatMap((line, idx) => [
+        idx > 0 ? new TextRun({ text: "\n" }) : undefined,
+        new TextRun({ text: line }),
+      ])
+      .filter(Boolean) as TextRun[],
   });
 }
 
@@ -139,7 +148,11 @@ function experienceTable(epBlock: any, index: number) {
       bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
       left: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
       right: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-      insideHorizontal: { style: BorderStyle.SINGLE, size: 2, color: "CCCCCC" },
+      insideHorizontal: {
+        style: BorderStyle.SINGLE,
+        size: 2,
+        color: "CCCCCC",
+      },
       insideVertical: { style: BorderStyle.SINGLE, size: 2, color: "CCCCCC" },
     },
     rows: [
@@ -166,14 +179,25 @@ function experienceTable(epBlock: any, index: number) {
       ),
       infoRow(
         "Dates / Effort",
-        [dates, manDays && `Man-days: ${manDays}`].filter(Boolean).join(" | ")
+        [dates, manDays && `Man-days: ${manDays}`]
+          .filter(Boolean)
+          .join(" | ")
       ),
       infoRow("Client", client),
       infoRow("Project size", projectSize),
       new TableRow({
         children: [
           new TableCell({
-            children: [new Paragraph({ text: "Project description", bold: true })],
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: "Project description",
+                    bold: true,
+                  }),
+                ],
+              }),
+            ],
             width: { size: 40, type: WidthType.PERCENTAGE },
           }),
           new TableCell({
@@ -187,8 +211,12 @@ function experienceTable(epBlock: any, index: number) {
           new TableCell({
             children: [
               new Paragraph({
-                text: "Roles & responsibilities",
-                bold: true,
+                children: [
+                  new TextRun({
+                    text: "Roles & responsibilities",
+                    bold: true,
+                  }),
+                ],
               }),
             ],
             width: { size: 40, type: WidthType.PERCENTAGE },
@@ -206,10 +234,7 @@ function experienceTable(epBlock: any, index: number) {
           }),
         ],
       }),
-      infoRow(
-        "Technologies / methodologies",
-        technologies.join(", ")
-      ),
+      infoRow("Technologies / methodologies", technologies.join(", ")),
       infoRow("Date of last update", lastUpdate),
     ],
   });
@@ -230,10 +255,14 @@ export async function POST(req: NextRequest) {
     // 1) original CV from editor (single source of truth)
     const original = body.cv ?? body.data;
     if (!original) {
-      return NextResponse.json({ error: "No CV data to export." }, { status: 400 });
+      return NextResponse.json(
+        { error: "No CV data to export." },
+        { status: 400 }
+      );
     }
 
-    const targetLocale = (body.locale || original?.meta?.locale || "en").toLowerCase();
+    const targetLocale = (body.locale || original?.meta?.locale || "en")
+      .toLowerCase();
     const origin = new URL(req.url).origin;
 
     // 2) LLM proofread / smart rewrite (with safe fallback)
@@ -276,9 +305,7 @@ export async function POST(req: NextRequest) {
     const profileLevel = S(ep.profile_level || c.profileLevel || c.seniority);
     const scReference = S(ep.sc_reference || c.scReference);
 
-    const highestQualification = S(
-      ep.highest_qualification
-    );
+    const highestQualification = S(ep.highest_qualification);
     const degreeName = S(ep.degree_name);
     const institute = S(ep.institute);
     const degreeDate = S(ep.degree_date);
@@ -291,12 +318,17 @@ export async function POST(req: NextRequest) {
     );
 
     const specialisedExpertise = S(
-      ep.specialised_expertise || c.specialisedExpertise || c.summary || c.about
+      ep.specialised_expertise ||
+        c.specialisedExpertise ||
+        c.summary ||
+        c.about
     );
 
     const addressLine = S(ep.address || c.address?.line1 || c.address?.street);
     const city = S(ep.city || c.address?.city || c.location);
-    const postalCode = S(ep.postal_code || c.address?.postalCode || c.address?.zip);
+    const postalCode = S(
+      ep.postal_code || c.address?.postalCode || c.address?.zip
+    );
     const country = S(ep.country || c.address?.country);
 
     const contacts = c.contacts || {};
@@ -340,7 +372,10 @@ export async function POST(req: NextRequest) {
         infoRow("Contracting authority / Employer", employer),
         infoRow("Date of recruitment", dateOfRecruitment),
         infoRow("Current function", currentFunction),
-        infoRow("Profile for which employee is offered", profileLevel),
+        infoRow(
+          "Profile for which employee is offered",
+          profileLevel
+        ),
         infoRow("SC reference", scReference),
         infoRow("Highest educational qualification", highestQualification),
         infoRow("Degree / diploma", degreeName),
@@ -365,19 +400,64 @@ export async function POST(req: NextRequest) {
         new TableRow({
           children: [
             new TableCell({
-              children: [new Paragraph({ text: "Training / Course", bold: true })],
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: "Training / Course",
+                      bold: true,
+                    }),
+                  ],
+                }),
+              ],
             }),
             new TableCell({
-              children: [new Paragraph({ text: "Provider", bold: true })],
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: "Provider",
+                      bold: true,
+                    }),
+                  ],
+                }),
+              ],
             }),
             new TableCell({
-              children: [new Paragraph({ text: "Hours", bold: true })],
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: "Hours",
+                      bold: true,
+                    }),
+                  ],
+                }),
+              ],
             }),
             new TableCell({
-              children: [new Paragraph({ text: "Certificate", bold: true })],
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: "Certificate",
+                      bold: true,
+                    }),
+                  ],
+                }),
+              ],
             }),
             new TableCell({
-              children: [new Paragraph({ text: "Date", bold: true })],
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: "Date",
+                      bold: true,
+                    }),
+                  ],
+                }),
+              ],
             }),
           ],
         }),
@@ -414,13 +494,40 @@ export async function POST(req: NextRequest) {
         new TableRow({
           children: [
             new TableCell({
-              children: [new Paragraph({ text: "Tool / Technology", bold: true })],
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: "Tool / Technology",
+                      bold: true,
+                    }),
+                  ],
+                }),
+              ],
             }),
             new TableCell({
-              children: [new Paragraph({ text: "Years", bold: true })],
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: "Years",
+                      bold: true,
+                    }),
+                  ],
+                }),
+              ],
             }),
             new TableCell({
-              children: [new Paragraph({ text: "Description", bold: true })],
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: "Description",
+                      bold: true,
+                    }),
+                  ],
+                }),
+              ],
             }),
           ],
         }),
@@ -445,7 +552,7 @@ export async function POST(req: NextRequest) {
     // 5. WORK EXPERIENCE – EP-style repeated blocks
     const experienceBlocks =
       workBlocks.length > 0
-        ? workBlocks.map((b, idx) => experienceTable(b, idx))
+        ? workBlocks.map((b: any, idx: number) => experienceTable(b, idx))
         : [
             new Table({
               width: { size: 100, type: WidthType.PERCENTAGE },
@@ -462,19 +569,64 @@ export async function POST(req: NextRequest) {
               new TableRow({
                 children: [
                   new TableCell({
-                    children: [new Paragraph({ text: "Language", bold: true })],
+                    children: [
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: "Language",
+                            bold: true,
+                          }),
+                        ],
+                      }),
+                    ],
                   }),
                   new TableCell({
-                    children: [new Paragraph({ text: "Speaking", bold: true })],
+                    children: [
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: "Speaking",
+                            bold: true,
+                          }),
+                        ],
+                      }),
+                    ],
                   }),
                   new TableCell({
-                    children: [new Paragraph({ text: "Listening", bold: true })],
+                    children: [
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: "Listening",
+                            bold: true,
+                          }),
+                        ],
+                      }),
+                    ],
                   }),
                   new TableCell({
-                    children: [new Paragraph({ text: "Reading", bold: true })],
+                    children: [
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: "Reading",
+                            bold: true,
+                          }),
+                        ],
+                      }),
+                    ],
                   }),
                   new TableCell({
-                    children: [new Paragraph({ text: "Writing", bold: true })],
+                    children: [
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: "Writing",
+                            bold: true,
+                          }),
+                        ],
+                      }),
+                    ],
                   }),
                 ],
               }),
@@ -486,7 +638,9 @@ export async function POST(req: NextRequest) {
                 const writing = S(l.writing);
                 return new TableRow({
                   children: [
-                    new TableCell({ children: [new Paragraph({ text: name })] }),
+                    new TableCell({
+                      children: [new Paragraph({ text: name })],
+                    }),
                     new TableCell({
                       children: [new Paragraph({ text: speaking })],
                     }),
@@ -568,7 +722,7 @@ export async function POST(req: NextRequest) {
               text: "5. WORK EXPERIENCE",
               heading: HeadingLevel.HEADING_1,
             }),
-            ...experienceBlocks.flatMap((tbl) => [
+            ...experienceBlocks.flatMap((tbl: any) => [
               tbl,
               new Paragraph({ text: "" }),
             ]),
@@ -601,7 +755,10 @@ export async function POST(req: NextRequest) {
 
     const buffer = (await Packer.toBuffer(doc)) as Buffer;
 
-    const safeName = (fullName || "candidate").replace(/[^\p{L}\p{N}_ -]/gu, "_");
+    const safeName = (fullName || "candidate").replace(
+      /[^\p{L}\p{N}_ -]/gu,
+      "_"
+    );
     const lang = (locale || targetLocale || "en").toLowerCase();
     const stamp = dayjs().format("YYYYMMDD");
     const filename = `${safeName}_EP_${lang}_${stamp}.docx`;

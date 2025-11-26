@@ -59,14 +59,15 @@ function simpleXmlText(xml: string, tag: string) {
 async function extractDocx(zip: any): Promise<string> {
   const file = zip.file("word/document.xml");
   if (!file) return "";
-  const xml = await file.async("string");
-  const textNodes = Array.from(xml.matchAll(/<w:t[^>]*>(.*?)<\/w:t>/g)).map(m =>
-    (m[1] || "")
+ const xml = await file.async("string");
+const textNodes = Array.from(xml.matchAll(/<w:t[^>]*>(.*?)<\/w:t>/g)).map(
+  (m) =>
+    ((m as RegExpMatchArray)[1] || "")
       .replace(/<!\[CDATA\[|\]\]>/g, "")
       .replace(/&lt;/g, "<")
       .replace(/&gt;/g, ">")
       .replace(/&amp;/g, "&")
-  );
+);
   return textNodes.join("\n");
 }
 
@@ -81,13 +82,13 @@ async function extractPptx(zip: any): Promise<string> {
   const chunks: string[] = [];
   for (const f of files) {
     const xml = await f.async("string");
-    const texts = Array.from(xml.matchAll(/<a:t[^>]*>(.*?)<\/a:t>/g)).map(m =>
-      (m[1] || "")
-        .replace(/<!\[CDATA\[|\]\]>/g, "")
-        .replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">")
-        .replace(/&amp;/g, "&")
-    );
+const texts = Array.from(xml.matchAll(/<a:t[^>]*>(.*?)<\/a:t>/g)).map((m) =>
+  ((m as RegExpMatchArray)[1] || "")
+    .replace(/<!\[CDATA\[|\]\]>/g, "")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+);
     if (texts.length) {
       chunks.push(texts.join("\n"));
     }

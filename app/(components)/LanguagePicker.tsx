@@ -1,16 +1,38 @@
+// app/(components)/LanguagePicker.tsx
 "use client";
-import React, { useState } from "react";
-export function LanguagePicker({ value='en', onChange }:{ value?: 'en'|'fr'|'de'|'nl'; onChange:(v:any)=>void }){
-  const [v,setV] = useState(value);
+
+import * as React from "react";
+
+export type LanguagePickerProps = {
+  value: string;
+  onChange: React.Dispatch<React.SetStateAction<string>>;
+};
+
+const LANGUAGES = [
+  { code: "en", label: "English" },
+  { code: "fr", label: "Français" },
+  { code: "de", label: "Deutsch" },
+  { code: "nl", label: "Nederlands" },
+];
+
+export function LanguagePicker({ value, onChange }: LanguagePickerProps) {
   return (
     <div className="flex items-center gap-2">
-      <label className="text-sm text-gray-600">Language</label>
-      <select className="border rounded px-2 py-1" value={v} onChange={e=>{ setV(e.target.value as any); onChange(e.target.value); }}>
-        <option value="en">English</option>
-        <option value="fr">Français</option>
-        <option value="de">Deutsch</option>
-        <option value="nl">Nederlands</option>
+      <label className="text-sm text-slate-600">Language:</label>
+      <select
+        className="border rounded px-2 py-1 text-sm"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        {LANGUAGES.map((lang) => (
+          <option key={lang.code} value={lang.code}>
+            {lang.label}
+          </option>
+        ))}
       </select>
     </div>
   );
 }
+
+// Default export for imports/dynamic() that expect a default
+export default LanguagePicker;

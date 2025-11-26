@@ -43,9 +43,28 @@ const MaskingToggles = dynamic(
 
 function Spinner({ size = 16 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" className="animate-spin text-gray-500" aria-label="loading">
-      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" opacity="0.2" />
-      <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="4" fill="none" />
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      className="animate-spin text-gray-500"
+      aria-label="loading"
+    >
+      <circle
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+        fill="none"
+        opacity="0.2"
+      />
+      <path
+        d="M22 12a10 10 0 0 1-10 10"
+        stroke="currentColor"
+        strokeWidth="4"
+        fill="none"
+      />
     </svg>
   );
 }
@@ -100,10 +119,12 @@ export default function Page() {
         const msg = json?.error || `Failed to convert to CVJson (HTTP ${res.status})`;
         throw new Error(msg);
       }
-      const maybe = (json.cv ?? json.data ?? json.result ?? json);
-      const rawOut: any = (maybe && typeof maybe === "object" ? (maybe.cv ?? maybe) : maybe);
+      const maybe = json.cv ?? json.data ?? json.result ?? json;
+      const rawOut: any =
+        maybe && typeof maybe === "object" ? maybe.cv ?? maybe : maybe;
       const out = migrateCvShape(rawOut);
-      if (!out?.candidate?.name) throw new Error("Server returned no CV data (missing candidate.name).");
+      if (!out?.candidate?.name)
+        throw new Error("Server returned no CV data (missing candidate.name).");
 
       setCv(out as CVJson);
       setPreviewUrl(null);
@@ -138,7 +159,10 @@ export default function Page() {
 
       if (!res.ok) {
         let msg = "Preview failed";
-        try { const j = await res.json(); msg = j?.error || msg; } catch {}
+        try {
+          const j = await res.json();
+          msg = j?.error || msg;
+        } catch {}
         throw new Error(msg);
       }
 
@@ -152,7 +176,9 @@ export default function Page() {
       // Force HTML path for DOCX/PPTX previews (EP DOCX specifically renders HTML snapshot)
       if (template === "docx-ep" || template === "pptx-kyndryl-sm") {
         const html = await res.text().catch(() => "");
-        const page = html?.trim() ? html : fallbackHtml("No HTML from server", cv, template);
+        const page = html?.trim()
+          ? html
+          : fallbackHtml("No HTML from server", cv, template);
         makeUrl(new Blob([page], { type: "text/html" }));
         setPreviewCt("html");
         return;
@@ -163,7 +189,10 @@ export default function Page() {
       if (ct.includes("application/pdf") || ct.includes("octet-stream")) {
         const blob = await res.blob();
         if (!blob || blob.size === 0) {
-          const fb = new Blob([fallbackHtml("Empty PDF from server", cv, template)], { type: "text/html" });
+          const fb = new Blob(
+            [fallbackHtml("Empty PDF from server", cv, template)],
+            { type: "text/html" }
+          );
           makeUrl(fb);
           setPreviewCt("html");
           return;
@@ -175,7 +204,9 @@ export default function Page() {
 
       // Fallback: treat as HTML
       const html = await res.text().catch(() => "");
-      const page = html?.trim() ? html : fallbackHtml("No HTML from server", cv, template);
+      const page = html?.trim()
+        ? html
+        : fallbackHtml("No HTML from server", cv, template);
       makeUrl(new Blob([page], { type: "text/html" }));
       setPreviewCt("html");
     } catch (e: any) {
@@ -193,7 +224,7 @@ export default function Page() {
       setBusy(true);
 
       const { kind } = TEMPLATE_META[template]; // "pdf" | "docx" | "pptx"
-      const route = `/api/export/${kind}`;      // /api/export/docx for EP
+      const route = `/api/export/${kind}`; // /api/export/docx for EP
 
       const res = await fetch(route, {
         method: "POST",
@@ -210,7 +241,10 @@ export default function Page() {
 
       if (!res.ok) {
         let msg = "Export failed";
-        try { const j = await res.json(); msg = j?.error || msg; } catch {}
+        try {
+          const j = await res.json();
+          msg = j?.error || msg;
+        } catch {}
         throw new Error(msg);
       }
 
@@ -248,11 +282,18 @@ export default function Page() {
             disabled={busy}
           >
             {Object.entries(TEMPLATE_META).map(([id, meta]) => (
-              <option key={id} value={id}>{meta.label}</option>
+              <option key={id} value={id}>
+                {meta.label}
+              </option>
             ))}
           </select>
-          <LanguagePicker value={locale} onChange={setLocale} />
-          <MaskingToggles value={maskPersonal} onChange={setMaskPersonal} />
+          {/* Relax typing for dynamic component props */}
+          <LanguagePicker
+            {...({ value: locale, onChange: setLocale } as any)}
+          />
+          <MaskingToggles
+            {...({ value: maskPersonal, onChange: setMaskPersonal } as any)}
+          />
           <button
             onClick={doPreview}
             className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white hover:bg-black/90 disabled:opacity-60"
@@ -273,12 +314,17 @@ export default function Page() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {/* Left: Search + Editor */}
         <div className="flex min-h-[70vh] flex-col gap-4">
-          <DocSearchPanel onSelect={handleUseThisCV} />
+          <DocSearchPanel {...({ onSelect: handleUseThisCV } as any)} />
           <div className="rounded-xl border p-3">
             <div className="mb-2 text-sm font-medium">
-              Editor {cv?.candidate?.name ? (<span className="ml-2 text-gray-500">— Loaded: {cv.candidate.name}</span>) : null}
+              Editor{" "}
+              {cv?.candidate?.name ? (
+                <span className="ml-2 text-gray-500">
+                  — Loaded: {cv.candidate.name}
+                </span>
+              ) : null}
             </div>
-            <CVEditor value={cv} onChange={setCv} />
+            <CVEditor {...({ value: cv, onChange: setCv } as any)} />
           </div>
         </div>
 
@@ -286,20 +332,34 @@ export default function Page() {
         <div className="min-h-[70vh] rounded-xl border p-3">
           <div className="mb-2 flex items-center justify-between">
             <div className="text-sm font-medium">
-              Preview {previewCt ? <span className="ml-1 text-gray-500">({previewCt})</span> : null}
+              Preview{" "}
+              {previewCt ? (
+                <span className="ml-1 text-gray-500">({previewCt})</span>
+              ) : null}
             </div>
             {busy && <Spinner />}
           </div>
 
           {previewUrl ? (
             previewCt === "pdf" ? (
-              <embed src={previewUrl} type="application/pdf" className="h-[70vh] w-full rounded-lg border" />
+              <embed
+                src={previewUrl}
+                type="application/pdf"
+                className="h-[70vh] w-full rounded-lg border"
+              />
             ) : (
-              <iframe src={previewUrl} className="h-[70vh] w-full rounded-lg border" />
+              <iframe
+                src={previewUrl}
+                className="h-[70vh] w-full rounded-lg border"
+              />
             )
           ) : (
             <div className="grid h-[70vh] place-items-center rounded-lg bg-gray-50 text-gray-500">
-              Click <span className="mx-1 rounded bg-black px-2 py-1 text-white">Preview</span> to render
+              Click{" "}
+              <span className="mx-1 rounded bg-black px-2 py-1 text-white">
+                Preview
+              </span>{" "}
+              to render
             </div>
           )}
         </div>
@@ -308,7 +368,10 @@ export default function Page() {
   );
 
   function fallbackHtml(note: string, cv: CVJson, templateId: string) {
-    const esc = (s: string) => s.replace(/[&<>"]/g, (c) => (c==="&"?"&amp;":c==="<"?"&lt;":c===">"?"&gt;":"&quot;"));
+    const esc = (s: string) =>
+      s.replace(/[&<>"]/g, (c) =>
+        c === "&" ? "&amp;" : c === "<" ? "&lt;" : c === ">" ? "&gt;" : "&quot;"
+      );
     return `<!doctype html><meta charset="utf-8"><style>body{font-family:ui-sans-serif,system-ui;padding:24px}pre{background:#f6f8fa;padding:12px;border:1px solid #e5e7eb;border-radius:8px;white-space:pre-wrap}</style><h1>Preview (${templateId})</h1><p>${esc(
       note
     )}</p><pre>${esc(JSON.stringify(cv, null, 2))}</pre>`;

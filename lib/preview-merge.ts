@@ -57,11 +57,17 @@ export function syncEducationFromPreview(cv: CVJson, previewModel: any): CVJson 
   const next: CVJson = {
     ...cv,
     education: mapped,
-    meta: {
-      ...(cv.meta || {}),
-      // breadcrumb for debugging
-      flags: { ...(cv.meta?.flags || {}), educationSyncedFromPreview: true },
-    },
+    meta: Object.assign(
+      {},
+      cv.meta || {},
+      {
+        // breadcrumb for debugging
+        flags: {
+          ...((cv.meta as any)?.flags || {}),
+          educationSyncedFromPreview: true,
+        },
+      }
+    ) as any,
   };
 
   return next;
