@@ -1,10 +1,8 @@
-/* app/globals.css */
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* --- Kyndryl red --- */
+/* --- Kyndryl brand colors --- */
 :root {
   --brand: #FF462D;
   --brand-50: #FFF0EE;
@@ -22,36 +20,43 @@ video {
   max-width: 100%;
   height: auto;
 }
+
 .brand-logo {
   height: 22px;
   width: auto;
 }
 
-/* Core UI primitives */
+/* Tailwind-style component classes */
 @layer components {
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
   }
+
   .btn-brand {
     @apply text-white;
-    background: var(--brand);
+    background-color: var(--brand);
   }
-  .btn-brand:hover {
+
+  .btn-brand:hover:not(:disabled) {
     filter: brightness(0.92);
   }
+
   .btn-ghost {
     @apply border border-zinc-300 bg-white text-zinc-800;
   }
-  .btn-ghost:hover {
+
+  .btn-ghost:hover:not(:disabled) {
     @apply bg-zinc-100;
   }
 
   .card {
-    @apply rounded-2xl border border-zinc-200 bg-white shadow-sm;
+    @apply rounded-2xl border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)];
   }
+
   .card-head {
     @apply px-4 py-3 border-b border-zinc-200 flex items-center justify-between;
   }
+
   .card-body {
     @apply p-4;
   }
@@ -59,9 +64,11 @@ video {
   .input {
     @apply w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand-200)];
   }
+
   .select {
     @apply rounded-lg border border-zinc-300 bg-white px-2 py-2 text-sm;
   }
+
   .label {
     @apply block text-xs font-medium text-zinc-600 mb-1;
   }
@@ -69,8 +76,9 @@ video {
   .badge {
     @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
   }
+
   .badge-brand {
-    background: var(--brand-50);
+    background-color: var(--brand-50);
     color: var(--brand);
   }
 
@@ -82,34 +90,22 @@ video {
     border-top-color: transparent;
     animation: spin 0.8s linear infinite;
   }
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
 
   .overlay {
-    @apply fixed inset-0 z-50 flex items-center justify-center bg-black/10 backdrop-blur-sm;
+    @apply fixed inset-0 z-50 flex items-center justify-center bg-black/10;
+    backdrop-filter: blur(4px);
   }
 }
 
-/* Reduced motion */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .spinner {
     animation: none !important;
     border-top-color: var(--brand) !important;
-  }
-}
-
-/* Slightly denser controls */
-@layer components {
-  .btn {
-    @apply px-3 py-2;
-  }
-  .card {
-    @apply shadow-[0_1px_2px_rgba(0,0,0,0.04)];
-  }
-  .input {
-    @apply py-2;
   }
 }

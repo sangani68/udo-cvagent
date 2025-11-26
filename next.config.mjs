@@ -2,18 +2,13 @@ import path from "path";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // IMPORTANT: this makes Next generate .next/standalone/server.js
   output: "standalone",
-
   experimental: {
     // Allow Node-only packages to be required at runtime on the server.
     serverComponentsExternalPackages: ["word-extractor"],
   },
-
   webpack: (config, { isServer }) => {
-    // ─────────────────────────────────────────────
     // Keep "word-extractor" external on the server
-    // ─────────────────────────────────────────────
     if (isServer) {
       const original = Array.isArray(config.externals)
         ? config.externals
@@ -32,10 +27,7 @@ const nextConfig = {
       ];
     }
 
-    // ─────────────────────────────────────────────
-    // Alias "@" → project root for imports
-    // So "@/lib/..." => "<project-root>/lib/..."
-    // ─────────────────────────────────────────────
+    // NEW: Alias "@" → project root for imports
     config.resolve = config.resolve || {};
     config.resolve.alias = {
       ...(config.resolve.alias || {}),

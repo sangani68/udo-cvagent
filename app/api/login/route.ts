@@ -1,39 +1,53 @@
-// app/api/login/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
-  const body = (await req.json().catch(() => ({}))) as { password?: string };
-  const password = body.password;
-  const expected = process.env.APP_PASSWORD;
+  try {
+    const body = await req.json().catch(() => ({}));
+    const password = (body?.password ?? "") as string;
 
-  if (!expected) {
+    // ✅ Read password from either LANDING_PASSWORD or NEXT_PUBLIC_LANDING_PASSWORD
+    const envPassword =
+      process.env.LANDING_PASSWORD ||
+      process.env.NEXT_PUBLIC_LANDING_PASSWORD ||
+      "";
+
+    // If no password configured at all, allow everything in local dev
+    if (!envPassword) {
+      console.warn(
+        "⚠️ No LANDING_PASSWORD / NEXT_PUBLIC_LANDING_PASSWORD configured; allowing access by default.",
+      );
+      const res = NextResponse.json({ ok: true });
+      res.cookies.set("cv_agent_auth", "1", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+      });
+      return res;
+    }
+
+    if (password !== envPassword) {
+      return NextResponse.json(
+        { ok: false, error: "Invalid password" },
+        { status: 401 },
+      );
+    }
+
+    const res = NextResponse.json({ ok: true });
+    res.cookies.set("cv_agent_auth", "1", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+    });
+    return res;
+  } catch (err) {
+    console.error("Login error", err);
     return NextResponse.json(
-      { ok: false, error: "APP_PASSWORD is not configured on the server." },
-      { status: 500 }
+      { ok: false, error: "Login failed" },
+      { status: 500 },
     );
   }
-
-  if (!password || password !== expected) {
-    return NextResponse.json(
-      { ok: false, error: "Invalid password" },
-      { status: 401 }
-    );
-  }
-
-  const res = NextResponse.json({ ok: true });
-
-  const isProd = process.env.NODE_ENV === "production";
-
-  // In dev (http://localhost) we must NOT set secure: true
-  res.cookies.set("cvagent_auth", "true", {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 12, // 12 hours
-  });
-
-  return res;
 }
