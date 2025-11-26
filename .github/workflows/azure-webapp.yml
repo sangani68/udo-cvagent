@@ -10,8 +10,9 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
-    env:
-      NODE_ENV: production
+    # ⛔️ Removed NODE_ENV: production so devDependencies are installed
+    # env:
+    #   NODE_ENV: production
 
     steps:
       - name: Checkout repository
@@ -24,6 +25,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
+        # This installs BOTH dependencies and devDependencies
         run: npm ci
 
       - name: Build Next.js app
