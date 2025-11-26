@@ -16,6 +16,8 @@
     "@azure/search-documents": "^12.2.0",
     "@azure/storage-blob": "^12.29.1",
     "@react-pdf/renderer": "^4.3.1",
+    "@tailwindcss/postcss": "^4.1.17",
+    "autoprefixer": "^10.4.21",
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.19",
     "docx": "^9.5.1",
@@ -28,19 +30,17 @@
     "pdf-parse": "^2.4.5",
     "pizzip": "^3.2.0",
     "playwright": "^1.56.1",
+    "postcss": "^8.5.6",
     "pptxgenjs": "^4.0.1",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "undici": "^7.16.0",
-    "word-extractor": "^1.0.4",
-    "@tailwindcss/postcss": "^4.1.17"
+    "word-extractor": "^1.0.4"
   },
   "devDependencies": {
     "@types/node": "20.11.30",
     "@types/react": "18.2.79",
     "@types/react-dom": "18.2.25",
-    "autoprefixer": "^10.4.21",
-    "postcss": "^8.5.6",
     "tailwindcss": "^4.1.16",
     "typescript": "5.5.4"
   }
