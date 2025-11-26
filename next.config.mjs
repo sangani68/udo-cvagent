@@ -2,6 +2,9 @@ import path from "path";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // ✅ Make Next emit .next/standalone/server.js so your start script works
+  output: "standalone",
+
   experimental: {
     // Allow Node-only packages to be required at runtime on the server.
     serverComponentsExternalPackages: ["word-extractor"],
@@ -23,15 +26,14 @@ const nextConfig = {
           if (req === "word-extractor") {
             return cb(null, "commonjs word-extractor");
           }
-          cb();
+          return cb();
         },
         ...original,
       ];
     }
 
     // ─────────────────────────────────────────────
-    // NEW: Alias "@" → project root for imports
-    // So "@/lib/..." => "<project-root>/lib/..."
+    // Alias "@" → project root
     // ─────────────────────────────────────────────
     config.resolve = config.resolve || {};
     config.resolve.alias = {
