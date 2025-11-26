@@ -1,0 +1,52 @@
+/* Tailwind v4: import the framework  */
+@import "tailwindcss";
+
+/* --- Kyndryl red --- */
+:root{
+  --brand:#FF462D;
+  --brand-50:#FFF0EE;
+  --brand-100:#FFD5CF;
+  --brand-200:#FFB7AD;
+  --brand-300:#FF8F82;
+  --brand-400:#FF6B5B;
+  --brand-500:#FF462D;
+}f
+
+/* Make media predictable */
+img, svg, video { max-width: 100%; height: auto; }
+.brand-logo { height: 22px; width: auto; }
+
+/* Put @apply-based classes inside a layer */
+@layer components {
+  .btn{ @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed; }
+  .btn-brand{ background: var(--brand); @apply text-white; }
+  .btn-brand:hover{ filter: brightness(0.92); }
+  .btn-ghost{ @apply border border-zinc-300 bg-white text-zinc-800; }
+  .btn-ghost:hover{ @apply bg-zinc-100; }
+
+  .card{ @apply rounded-2xl border border-zinc-200 bg-white shadow-sm; }
+  .card-head{ @apply px-4 py-3 border-b border-zinc-200 flex items-center justify-between; }
+  .card-body{ @apply p-4; }
+
+  .input{ @apply w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand-200)]; }
+  .select{ @apply rounded-lg border border-zinc-300 bg-white px-2 py-2 text-sm; }
+  .label{ @apply block text-xs font-medium text-zinc-600 mb-1; }
+
+  .badge{ @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium; }
+  .badge-brand{ background: var(--brand-50); color: var(--brand); }
+
+  .spinner{ width:18px; height:18px; border-radius:9999px; border:2px solid var(--brand); border-top-color:transparent; animation:spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg) } }
+  .overlay{ @apply fixed inset-0 z-50 flex items-center justify-center bg-black/10 backdrop-blur-sm; }
+}
+/* Subtle motion reductions */
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation: none !important; border-top-color: var(--brand) !important; }
+}
+
+/* Slightly denser controls for a “business” feel */
+@layer components {
+  .btn { @apply px-3 py-2; }
+  .card { @apply shadow-[0_1px_2px_rgba(0,0,0,0.04)]; }
+  .input { @apply py-2; }
+}

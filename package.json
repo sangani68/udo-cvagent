@@ -1,0 +1,47 @@
+{
+  "name": "cv-agent-starter",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "node .next/standalone/server.js -H 0.0.0.0 -p ${PORT:-8080}",
+    "postinstall": "playwright install --with-deps chromium || echo 'Playwright install skipped'"
+  },
+  "engines": {
+    "node": "20.x"
+  },
+  "dependencies": {
+    "@azure/search-documents": "^12.2.0",
+    "@azure/storage-blob": "^12.29.1",
+    "@react-pdf/renderer": "^4.3.1",
+    "date-fns": "^4.1.0",
+    "dayjs": "^1.11.19",
+    "docx": "^9.5.1",
+    "docxtemplater": "^3.67.5",
+    "html-docx-js": "^0.3.1",
+    "jszip": "^3.10.1",
+    "mammoth": "^1.11.0",
+    "next": "^14.2.33",
+    "nunjucks": "3.2.4",
+    "pdf-parse": "^2.4.5",
+    "pizzip": "^3.2.0",
+    "playwright": "^1.56.1",
+    "pptxgenjs": "^4.0.1",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "undici": "^7.16.0",
+    "word-extractor": "^1.0.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.16",
+    "@types/node": "20.11.30",
+    "@types/react": "18.2.79",
+    "@types/react-dom": "18.2.25",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.16",
+    "typescript": "5.5.4"
+  }
+}

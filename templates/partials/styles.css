@@ -1,0 +1,14 @@
+@page { size: A4; margin: 24mm 18mm; }
+* { box-sizing: border-box; }
+body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; font-size: 11pt; color: #222; }
+h1 { font-size: 22pt; margin: 0; }
+h2 { font-size: 12pt; margin: 18px 0 6px; text-transform: uppercase; letter-spacing: .08em; }
+.section { margin-top: 14px; }
+.row { display: flex; gap: 12px; }
+.left { flex: 1; }
+.right { width: 33%; }
+.item { margin: 6px 0; }
+small.muted { color: #666; }
+.hr { height: 1px; background: #eee; margin: 10px 0; }
+.bullet { margin-left: 16px; }
+.page-break { page-break-before: always; }

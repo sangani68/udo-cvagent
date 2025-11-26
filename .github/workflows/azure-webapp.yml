@@ -1,0 +1,51 @@
+name: Build & Deploy (Next.js Standalone → Azure Web App)
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node 20 with npm cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies (CI)
+        run: npm ci
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+          CI: true
+          NEXT_TELEMETRY_DISABLED: 1
+
+      - name: Build (Next.js standalone)
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+
+      - name: Prepare standalone artifact
+        run: |
+          # Place static assets next to the standalone server
+          mkdir -p .next/standalone/.next
+          cp -R .next/static .next/standalone/.next/
+          # Include public/ if present
+          if [ -d public ]; then cp -R public .next/standalone/public; fi
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: udo-cvagent
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: .next/standalone
