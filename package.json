@@ -32,10 +32,10 @@
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "undici": "^7.16.0",
-    "word-extractor": "^1.0.4"
+    "word-extractor": "^1.0.4",
+    "@tailwindcss/postcss": "^4.1.17"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.1.17",
     "@types/node": "20.11.30",
     "@types/react": "18.2.79",
     "@types/react-dom": "18.2.25",
