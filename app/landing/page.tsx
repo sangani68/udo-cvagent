@@ -2,11 +2,10 @@
 "use client";
 
 import React, { FormEvent, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 export default function LandingPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -20,8 +19,7 @@ export default function LandingPage() {
     setLoading(true);
 
     try {
-      const redirect = searchParams.get("redirect") || "/";
-      const res = await fetch(`/api/login?redirect=${encodeURIComponent(redirect)}`, {
+      const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),
@@ -35,7 +33,7 @@ export default function LandingPage() {
         return;
       }
 
-      // Cookie is set by the API; now just go to app
+      // API already decides redirect (defaults to "/")
       router.replace(json.redirect || "/");
     } catch (err) {
       console.error(err);
@@ -84,9 +82,7 @@ export default function LandingPage() {
                 className="btn btn-brand w-full justify-center"
                 disabled={loading || !password}
               >
-                <span>
-                  {loading ? "Checking..." : "Enter CV Agent"}
-                </span>
+                <span>{loading ? "Checking..." : "Enter CV Agent"}</span>
               </button>
               <p className="mt-2 text-[11px] text-zinc-500 leading-snug">
                 Configure the password via the{" "}
