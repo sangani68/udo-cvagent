@@ -6,8 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start -H 0.0.0.0 -p ${PORT:-8080}",
-    "postinstall": "playwright install --with-deps chromium || echo 'Playwright install skipped'"
+    "start": "next start -H 0.0.0.0 -p ${PORT:-8080}"
   },
   "engines": {
     "node": "20.x"
