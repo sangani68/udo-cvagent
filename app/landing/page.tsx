@@ -2,14 +2,10 @@
 "use client";
 
 import React, { FormEvent, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 export default function LandingPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-
-  // If middleware sent ?redirect=/foo keep that, else go to "/"
-  const redirect = searchParams?.get("redirect") || "/";
 
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +25,7 @@ export default function LandingPage() {
         body: JSON.stringify({ password }),
       });
 
-      const json = await res.json().catch(() => ({}));
+      const json = await res.json().catch(() => ({} as any));
 
       if (!res.ok || !json.ok) {
         setError(json.error || "Invalid password");
@@ -37,8 +33,8 @@ export default function LandingPage() {
         return;
       }
 
-      // On success, go to the redirect target (or "/")
-      router.replace(redirect);
+      // ✅ Always go to the main app root after successful login
+      router.replace("/");
     } catch (err) {
       console.error("Login error", err);
       setError("Something went wrong. Please try again.");
@@ -86,7 +82,7 @@ export default function LandingPage() {
               <button
                 type="submit"
                 className="btn btn-brand w-full justify-center"
-                // ❗ Only disabled while loading now
+                // ✅ Only disabled while loading now
                 disabled={loading}
               >
                 <span>{loading ? "Checking..." : "Enter CV Agent"}</span>
