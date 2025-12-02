@@ -24,7 +24,7 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Not authenticated → send to landing, with redirect hint
+  // Not authenticated → send to landing
   const redirectUrl = req.nextUrl.clone();
   redirectUrl.pathname = "/landing";
   redirectUrl.searchParams.set("redirect", pathname || "/");

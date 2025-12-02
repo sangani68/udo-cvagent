@@ -88,9 +88,7 @@ export default function LandingPage() {
               </button>
 
               <p className="mt-2 text-[11px] text-zinc-500 leading-snug">
-                Configure the password via the{" "}
-                <code>LANDING_PASSWORD</code> or{" "}
-                <code>NEXT_PUBLIC_LANDING_PASSWORD</code> app setting in Azure.
+                Password is checked on the server only.
               </p>
             </form>
           </div>
