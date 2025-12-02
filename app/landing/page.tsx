@@ -4,6 +4,8 @@
 import React, { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
+const HARDCODED_PASSWORD = "KyndrylCV2025!"; // ⬅️ change this to your password
+
 export default function LandingPage() {
   const router = useRouter();
 
@@ -19,25 +21,30 @@ export default function LandingPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
-      });
-
-      const json = await res.json().catch(() => ({} as any));
-
-      if (!res.ok || !json.ok) {
-        setError(json.error || "Invalid password");
+      // Simple client-side check
+      if (!password) {
+        setError("Password is required");
         setLoading(false);
         return;
       }
 
-      // Always go to root; middleware decides based on cookie
+      if (password !== HARDCODED_PASSWORD) {
+        setError("Invalid password");
+        setLoading(false);
+        return;
+      }
+
+      // Mark session as authenticated in the browser
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("cv-agent-auth", "1");
+      }
+
+      // Go to main app
       router.replace("/");
     } catch (err) {
       console.error("Login error", err);
       setError("Something went wrong. Please try again.");
+    } finally {
       setLoading(false);
     }
   }
@@ -88,7 +95,7 @@ export default function LandingPage() {
               </button>
 
               <p className="mt-2 text-[11px] text-zinc-500 leading-snug">
-                Password is checked on the server only.
+                Password is checked in the browser for this internal app.
               </p>
             </form>
           </div>

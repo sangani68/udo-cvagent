@@ -1,7 +1,8 @@
 "use client";
 export const runtime = "nodejs";
 
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import type { CVJson } from "../lib/cvSchema";
 import { migrateCvShape } from "../lib/cvSchema";
@@ -85,6 +86,17 @@ const TEMPLATE_META: Record<TemplateId, { kind: "pdf" | "docx" | "pptx"; label: 
    Page
    ───────────────────────────────────────────────────────────── */
 export default function Page() {
+  const router = useRouter();
+
+  // ── Simple client-side auth guard ──────────────────────────
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const flag = sessionStorage.getItem("cv-agent-auth");
+    if (flag !== "1") {
+      router.replace("/landing");
+    }
+  }, [router]);
+
   const [cv, setCv] = useState<CVJson | null>(null);
   const [template, setTemplate] = useState<TemplateId>(DEFAULT_TEMPLATE);
   const [locale, setLocale] = useState<string>("en");
@@ -96,7 +108,8 @@ export default function Page() {
   const [busy, setBusy] = useState<boolean>(false);
   const urlRef = useRef<string | null>(null);
 
-  React.useEffect(() => {
+  // Cleanup preview object URL
+  useEffect(() => {
     return () => {
       if (urlRef.current) {
         URL.revokeObjectURL(urlRef.current);
