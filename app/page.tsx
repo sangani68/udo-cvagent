@@ -3,44 +3,16 @@ export const runtime = "nodejs";
 
 import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
 import type { CVJson } from "../lib/cvSchema";
 import { migrateCvShape } from "../lib/cvSchema";
 
-/* ─────────────────────────────────────────────────────────────
-   Safe dynamic-import helper
-   ───────────────────────────────────────────────────────────── */
-function makeFallback(label: string) {
-  const Fallback: React.FC<any> = () => null;
-  Fallback.displayName = `Missing(${label})`;
-  return Fallback;
-}
-function safeResolver(mod: any, label: string, candidates: string[]): any {
-  for (const k of candidates) if (mod && typeof mod[k] === "function") return mod[k];
-  if (mod && typeof mod.default === "function") return mod.default;
-  return makeFallback(label);
-}
-function safeLoad(importer: () => Promise<any>, label: string, candidates: string[] = ["default"]) {
-  return importer().then((m) => safeResolver(m, label, candidates));
-}
-
-/* ─────────────────────────────────────────────────────────────
-   Components
-   ───────────────────────────────────────────────────────────── */
-const CVEditor = dynamic(
-  () => safeLoad(() => import("./(components)/CVEditor"), "CVEditor", ["CVEditor", "default"]),
-  { ssr: false }
-);
-const DocSearchPanel = dynamic(
-  () => safeLoad(() => import("./(components)/DocSearchPanel"), "DocSearchPanel", ["DocSearchPanel", "default"]),
-  { ssr: false }
-);
-const LanguagePicker = dynamic(
-  () => safeLoad(() => import("./(components)/LanguagePicker"), "LanguagePicker", ["LanguagePicker", "default"])
-);
-const MaskingToggles = dynamic(
-  () => safeLoad(() => import("./(components)/MaskingToggles"), "MaskingToggles", ["MaskingToggles", "default"])
-);
+// ─────────────────────────────────────────────────────────────
+// Static component imports (no dynamic import)
+// ─────────────────────────────────────────────────────────────
+import CVEditor from "./(components)/CVEditor";
+import DocSearchPanel from "./(components)/DocSearchPanel";
+import LanguagePicker from "./(components)/LanguagePicker";
+import MaskingToggles from "./(components)/MaskingToggles";
 
 function Spinner({ size = 16 }: { size?: number }) {
   return (
