@@ -2,10 +2,14 @@
 "use client";
 
 import React, { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function LandingPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // If middleware sent ?redirect=/foo keep that, else go to "/"
+  const redirect = searchParams?.get("redirect") || "/";
 
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -13,7 +17,7 @@ export default function LandingPage() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!password || loading) return;
+    if (loading) return;
 
     setError(null);
     setLoading(true);
@@ -25,18 +29,18 @@ export default function LandingPage() {
         body: JSON.stringify({ password }),
       });
 
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
 
       if (!res.ok || !json.ok) {
-        setError(json.error || "Login failed");
+        setError(json.error || "Invalid password");
         setLoading(false);
         return;
       }
 
-      // API already decides redirect (defaults to "/")
-      router.replace(json.redirect || "/");
+      // On success, go to the redirect target (or "/")
+      router.replace(redirect);
     } catch (err) {
-      console.error(err);
+      console.error("Login error", err);
       setError("Something went wrong. Please try again.");
       setLoading(false);
     }
@@ -74,16 +78,20 @@ export default function LandingPage() {
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
+
               {error && (
                 <p className="text-xs text-red-600">{error}</p>
               )}
+
               <button
                 type="submit"
                 className="btn btn-brand w-full justify-center"
-                disabled={loading || !password}
+                // ❗ Only disabled while loading now
+                disabled={loading}
               >
                 <span>{loading ? "Checking..." : "Enter CV Agent"}</span>
               </button>
+
               <p className="mt-2 text-[11px] text-zinc-500 leading-snug">
                 Configure the password via the{" "}
                 <code>LANDING_PASSWORD</code> app setting in Azure.
