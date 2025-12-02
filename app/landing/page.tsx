@@ -1,18 +1,24 @@
-// app/landing/page.tsx
 "use client";
 
-import React, { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-// ⬅️ Change this to any password you like.
 const HARDCODED_PASSWORD = "KyndrylCV2025!";
 
 export default function LandingPage() {
   const router = useRouter();
-
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // If already authenticated, go straight to the app
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const flag = sessionStorage.getItem("cv-agent-auth");
+    if (flag === "1") {
+      router.replace("/");
+    }
+  }, [router]);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -32,12 +38,10 @@ export default function LandingPage() {
         return;
       }
 
-      // ✅ Mark this browser tab as "logged in"
       if (typeof window !== "undefined") {
         sessionStorage.setItem("cv-agent-auth", "1");
       }
 
-      // Go to the main CV Agent page
       router.replace("/");
     } catch (err) {
       console.error("Login error", err);
@@ -48,56 +52,65 @@ export default function LandingPage() {
   }
 
   return (
-    <main className="mx-auto max-w-screen-2xl px-4 py-6 sm:px-6">
-      <div className="flex min-h-[calc(100vh-88px-72px)] items-center justify-center">
-        <div className="card w-full max-w-md">
-          <div className="card-head">
-            <div>
-              <h1 className="text-base font-semibold text-zinc-900">
-                Kyndryl CV Agent
-              </h1>
-              <p className="mt-1 text-xs text-zinc-500">
-                Enter the shared access password to continue.
-              </p>
-            </div>
-            <span className="badge badge-brand uppercase tracking-wide">
+    <main className="min-h-screen bg-slate-50">
+      <div className="mx-auto flex min-h-screen max-w-xl flex-col justify-center px-4">
+        <div className="mb-6 text-center">
+          <p className="text-xs font-semibold uppercase tracking-[.25em] text-sky-700">
+            Kyndryl
+          </p>
+          <h1 className="mt-2 text-2xl font-semibold">CV Agent</h1>
+          <p className="mt-2 text-sm text-slate-600">
+            Enter the shared access password to continue.
+          </p>
+        </div>
+
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-4 rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium uppercase tracking-[.25em] text-slate-500">
               Protected
             </span>
           </div>
-          <div className="card-body">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="label" htmlFor="password">
-                  Password
-                </label>
-                <input
-                  id="password"
-                  type="password"
-                  className="input"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
 
-              {error && (
-                <p className="text-xs text-red-600">{error}</p>
-              )}
-
-              <button
-                type="submit"
-                className="btn btn-brand w-full justify-center"
-                disabled={loading}
-              >
-                <span>{loading ? "Checking..." : "Enter CV Agent"}</span>
-              </button>
-
-              <p className="mt-2 text-[11px] text-zinc-500 leading-snug">
-                Password is checked in the browser for this internal app.
-              </p>
-            </form>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              Password
+            </label>
+            <input
+              type="password"
+              autoComplete="current-password"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={loading}
+            />
           </div>
-        </div>
+
+          {error && (
+            <p className="text-sm text-red-600" role="alert">
+              {error}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            className="inline-flex w-full items-center justify-center rounded-lg bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-60"
+            disabled={loading}
+          >
+            {loading ? "Checking…" : "Enter CV Agent"}
+          </button>
+
+          <p className="mt-2 text-xs text-slate-500">
+            Password is checked in the browser for this internal app.
+          </p>
+        </form>
+
+        <footer className="mt-6 text-center text-xs text-slate-400">
+          <p>© 2025 Kyndryl (demo). All rights reserved.</p>
+          <p className="mt-1">Privacy &amp; GDPR · Security · Terms</p>
+        </footer>
       </div>
     </main>
   );
