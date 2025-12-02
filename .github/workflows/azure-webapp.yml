@@ -10,10 +10,6 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
-    # ⛔️ Removed NODE_ENV: production so devDependencies are installed
-    # env:
-    #   NODE_ENV: production
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -25,20 +21,52 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        # This installs BOTH dependencies and devDependencies
         run: npm ci
 
       - name: Build Next.js app
         run: npm run build
 
-      - name: List build output (debug)
+      - name: Prepare deployment package
         run: |
-          ls -R
-          ls -R .next || echo ".next directory not found"
+          # Create a clean deploy folder
+          rm -rf .deploy
+          mkdir -p .deploy
+
+          # Copy app code and build output
+          cp -R .next .deploy/.next
+          cp -R public .deploy/public
+          cp -R app .deploy/app
+          cp -R components .deploy/components
+          cp -R lib .deploy/lib
+          cp -R templates .deploy/templates
+          cp -R types .deploy/types
+
+          # Config & metadata needed at runtime
+          cp package.json .deploy/package.json
+          cp package-lock.json .deploy/package-lock.json
+          cp next.config.mjs .deploy/next.config.mjs
+          cp tsconfig.json .deploy/tsconfig.json || true
+          cp postcss.config.cjs .deploy/postcss.config.cjs || true
+          cp tailwind.config.cjs .deploy/tailwind.config.cjs || true
+          cp middleware.ts .deploy/middleware.ts || true
+          cp server.js .deploy/server.js || true
+
+          # Include node_modules from the CI build so Azure doesn't need to run npm install
+          cp -R node_modules .deploy/node_modules
+
+          # Create a zip archive for deployment
+          cd .deploy
+          zip -r ../deploy.zip .
+          cd ..
+
+      - name: List deployment package (debug)
+        run: |
+          ls -R .deploy || echo ".deploy directory not found"
+          ls -lh deploy.zip || echo "deploy.zip not found"
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
           app-name: 'udo-cvagent'
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: '.'
+          package: 'deploy.zip'
