@@ -33,7 +33,7 @@ export default function LandingPage() {
         return;
       }
 
-      // ✅ Always go to the main app root after successful login
+      // Always go to root; middleware decides based on cookie
       router.replace("/");
     } catch (err) {
       console.error("Login error", err);
@@ -82,7 +82,6 @@ export default function LandingPage() {
               <button
                 type="submit"
                 className="btn btn-brand w-full justify-center"
-                // ✅ Only disabled while loading now
                 disabled={loading}
               >
                 <span>{loading ? "Checking..." : "Enter CV Agent"}</span>
@@ -90,7 +89,8 @@ export default function LandingPage() {
 
               <p className="mt-2 text-[11px] text-zinc-500 leading-snug">
                 Configure the password via the{" "}
-                <code>LANDING_PASSWORD</code> app setting in Azure.
+                <code>LANDING_PASSWORD</code> or{" "}
+                <code>NEXT_PUBLIC_LANDING_PASSWORD</code> app setting in Azure.
               </p>
             </form>
           </div>

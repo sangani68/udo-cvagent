@@ -1,3 +1,4 @@
+// middleware.ts
 import { NextRequest, NextResponse } from "next/server";
 
 const PUBLIC_FILE = /\.(.*)$/;
@@ -17,13 +18,13 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check the auth cookie set by the landing page
+  // Check the auth cookie set by /api/login
   const authCookie = req.cookies.get(COOKIE_NAME);
   if (authCookie?.value === "1") {
     return NextResponse.next();
   }
 
-  // Not authenticated → send to landing
+  // Not authenticated → send to landing, with redirect hint
   const redirectUrl = req.nextUrl.clone();
   redirectUrl.pathname = "/landing";
   redirectUrl.searchParams.set("redirect", pathname || "/");
@@ -31,7 +32,6 @@ export function middleware(req: NextRequest) {
   return NextResponse.redirect(redirectUrl);
 }
 
-// Apply middleware to everything except static assets
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
