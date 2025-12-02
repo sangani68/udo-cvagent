@@ -1,3 +1,4 @@
+// app/api/login/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -7,48 +8,49 @@ const COOKIE_NAME = "cv-agent-auth";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const password = (body?.password ?? "") as string;
+    const password = String(body?.password ?? "");
 
-    // Read password from either LANDING_PASSWORD or NEXT_PUBLIC_LANDING_PASSWORD
-    const envPassword =
-      process.env.LANDING_PASSWORD ||
-      process.env.NEXT_PUBLIC_LANDING_PASSWORD ||
-      "";
+    // 🔐 Single source of truth for the server password
+    const envPassword = process.env.LANDING_PASSWORD ?? "";
 
-    // If no password configured at all, allow everything (useful for local dev)
+    // If the server has no password configured at all,
+    // fail loudly so you see it in the UI.
     if (!envPassword) {
-      console.warn(
-        "⚠️ No LANDING_PASSWORD / NEXT_PUBLIC_LANDING_PASSWORD configured; allowing access by default.",
+      console.error("[login] LANDING_PASSWORD is NOT configured in environment");
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "Server password is not configured. Please set LANDING_PASSWORD in app settings.",
+        },
+        { status: 500 },
       );
-      const res = NextResponse.json({ ok: true });
-      res.cookies.set(COOKIE_NAME, "1", {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-      });
-      return res;
     }
 
-    // Password required and incorrect
+    // Wrong or empty password → 401
     if (!password || password !== envPassword) {
+      console.warn(
+        `[login] Invalid password attempt. envPassword length=${envPassword.length}, provided length=${password.length}`,
+      );
       return NextResponse.json(
         { ok: false, error: "Invalid password" },
         { status: 401 },
       );
     }
 
-    // OK → set auth cookie
+    // ✅ Correct password → set cookie that middleware checks
     const res = NextResponse.json({ ok: true });
+
     res.cookies.set(COOKIE_NAME, "1", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.NODE_ENV === "production", // true on Azure
       sameSite: "lax",
       path: "/",
     });
+
     return res;
   } catch (err) {
-    console.error("Login error", err);
+    console.error("[login] unexpected error", err);
     return NextResponse.json(
       { ok: false, error: "Login failed" },
       { status: 500 },
