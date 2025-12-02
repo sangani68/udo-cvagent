@@ -1,42 +1,37 @@
-// app/middleware.ts
-import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-const PUBLIC_PATHS = [
-  "/landing",
-  "/api/login",
-  "/favicon.ico",
-  "/kyndryl.svg",
-];
-
-function isPublicPath(pathname: string) {
-  if (PUBLIC_PATHS.includes(pathname)) return true;
-  if (pathname.startsWith("/_next/")) return true;
-  if (pathname.startsWith("/public/")) return true;
-  return false;
-}
+const PUBLIC_FILE = /\.(.*)$/;
+const COOKIE_NAME = "cv-agent-auth";
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  if (isPublicPath(pathname)) {
+  // Allow public assets, landing page, APIs, and Next internals
+  if (
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/landing") ||
+    pathname === "/favicon.ico" ||
+    PUBLIC_FILE.test(pathname)
+  ) {
     return NextResponse.next();
   }
 
-  const hasAuth = req.cookies.get("cv_agent_auth")?.value === "1";
-
-  if (!hasAuth) {
-    const url = req.nextUrl.clone();
-    url.pathname = "/landing";
-    url.searchParams.set("redirect", pathname || "/");
-    return NextResponse.redirect(url);
+  // Check the auth cookie set by the landing page
+  const authCookie = req.cookies.get(COOKIE_NAME);
+  if (authCookie?.value === "1") {
+    return NextResponse.next();
   }
 
-  return NextResponse.next();
+  // Not authenticated → send to landing
+  const redirectUrl = req.nextUrl.clone();
+  redirectUrl.pathname = "/landing";
+  redirectUrl.searchParams.set("redirect", pathname || "/");
+
+  return NextResponse.redirect(redirectUrl);
 }
 
+// Apply middleware to everything except static assets
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|kyndryl.svg).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
