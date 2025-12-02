@@ -150,13 +150,12 @@ export default function Page() {
     }
   }
 
-  // Preview: detect content-type → <embed> for PDF, <iframe> for HTML
+  // Preview
   async function doPreview() {
     if (!cv) return alert("Load or edit a CV first.");
     try {
       setBusy(true);
 
-      // Always send both cv + template; server will build view data (mask → normalize → translate)
       const res = await fetch("/api/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -186,7 +185,7 @@ export default function Page() {
         setPreviewUrl(url);
       };
 
-      // Force HTML path for DOCX/PPTX previews (EP DOCX specifically renders HTML snapshot)
+      // Force HTML path for DOCX/PPTX previews
       if (template === "docx-ep" || template === "pptx-kyndryl-sm") {
         const html = await res.text().catch(() => "");
         const page = html?.trim()
@@ -197,7 +196,7 @@ export default function Page() {
         return;
       }
 
-      // PDF path (Kyndryl/Europass)
+      // PDF path
       const ct = (res.headers.get("Content-Type") || "").toLowerCase();
       if (ct.includes("application/pdf") || ct.includes("octet-stream")) {
         const blob = await res.blob();
@@ -236,8 +235,8 @@ export default function Page() {
     try {
       setBusy(true);
 
-      const { kind } = TEMPLATE_META[template]; // "pdf" | "docx" | "pptx"
-      const route = `/api/export/${kind}`; // /api/export/docx for EP
+      const { kind } = TEMPLATE_META[template];
+      const route = `/api/export/${kind}`;
 
       const res = await fetch(route, {
         method: "POST",
@@ -263,7 +262,6 @@ export default function Page() {
 
       const blob = await res.blob();
 
-      // Try to use filename from server; else fallback
       const cd = res.headers.get("Content-Disposition") || "";
       const m = cd.match(/filename="?([^"]+)"?/i);
       const fallbackName = `export_${template}.${kind}`;
@@ -300,7 +298,6 @@ export default function Page() {
               </option>
             ))}
           </select>
-          {/* Relax typing for dynamic component props */}
           <LanguagePicker
             {...({ value: locale, onChange: setLocale } as any)}
           />

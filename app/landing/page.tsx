@@ -4,7 +4,8 @@
 import React, { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
-const HARDCODED_PASSWORD = "KyndrylCV2025!"; // ⬅️ change this to your password
+// ⬅️ Change this to any password you like.
+const HARDCODED_PASSWORD = "KyndrylCV2025!";
 
 export default function LandingPage() {
   const router = useRouter();
@@ -13,7 +14,7 @@ export default function LandingPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: FormEvent) {
+  function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (loading) return;
 
@@ -21,25 +22,22 @@ export default function LandingPage() {
     setLoading(true);
 
     try {
-      // Simple client-side check
       if (!password) {
         setError("Password is required");
-        setLoading(false);
         return;
       }
 
       if (password !== HARDCODED_PASSWORD) {
         setError("Invalid password");
-        setLoading(false);
         return;
       }
 
-      // Mark session as authenticated in the browser
+      // ✅ Mark this browser tab as "logged in"
       if (typeof window !== "undefined") {
         sessionStorage.setItem("cv-agent-auth", "1");
       }
 
-      // Go to main app
+      // Go to the main CV Agent page
       router.replace("/");
     } catch (err) {
       console.error("Login error", err);
