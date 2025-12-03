@@ -14,66 +14,28 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          # Match the App Service image: Node 20 LTS
+          node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
-        # Installs dependencies + devDependencies (needed for Next build)
         run: npm ci
 
       - name: Build Next.js app
+        run: npm run build
+
+      # 🔹 IMPORTANT:
+      # We zip the *whole* repo (including node_modules and .next),
+      # so Azure can just run `npm start` without rebuilding.
+      - name: Create deployment zip
         run: |
-          npm run build
-          echo "=== .next contents after build ==="
-          ls -la .next || echo ".next not found!"
-
-      - name: Prepare deployment package
-        run: |
-          # Clean + recreate deployment folder
-          rm -rf .deploy
-          mkdir -p .deploy
-
-          # 🔹 Copy built Next.js assets
-          cp -R .next .deploy/.next
-
-          # 🔹 Copy app source & supporting files
-          cp -R app .deploy/app
-          cp -R components .deploy/components
-          cp -R lib .deploy/lib
-          cp -R public .deploy/public
-          cp -R templates .deploy/templates || true
-          cp -R types .deploy/types || true
-
-          # 🔹 Configs & metadata
-          cp package.json .deploy/package.json
-          cp package-lock.json .deploy/package-lock.json
-          cp next.config.mjs .deploy/next.config.mjs
-          cp tsconfig.json .deploy/tsconfig.json
-          cp postcss.config.cjs .deploy/postcss.config.cjs
-          cp tailwind.config.cjs .deploy/tailwind.config.cjs
-          cp server.js .deploy/server.js || true
-
-      - name: List deployment package (debug)
-        run: |
-          echo "==== REPO ROOT ===="
-          ls -la
-          echo "==== .deploy ROOT ===="
-          ls -la .deploy
-          echo "==== .deploy/.next ===="
-          ls -la .deploy/.next || echo ".deploy/.next missing"
-          echo "==== .deploy/.next/static ===="
-          ls -la .deploy/.next/static || echo ".deploy/.next/static missing"
-
-      - name: Zip deployment package
-        run: |
-          cd .deploy
-          zip -r ../deploy.zip .
+          zip -r deploy.zip . -x ".git/*"
 
       - name: Deploy to Azure Web App
-        uses: azure/webapps-deploy@v2
+        uses: azure/webapps-deploy@v3
         with:
           app-name: 'udo-cvagent'
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
