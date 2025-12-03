@@ -14,29 +14,32 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          # Match the App Service image: Node 20 LTS
           node-version: '20'
           cache: 'npm'
 
+      # Optional sanity check: make sure it builds on CI
       - name: Install dependencies
         run: npm ci
 
-      - name: Build Next.js app
+      - name: Build Next.js app (sanity only)
         run: npm run build
 
-      # 🔹 IMPORTANT:
-      # We zip the *whole* repo (including node_modules and .next),
-      # so Azure can just run `npm start` without rebuilding.
-      - name: Create deployment zip
+      # ⚠️ No custom .deploy folder, no manual zipping.
+      # We just deploy the repo root and let Azure/Oryx do the real build.
+
+      - name: List repo (debug)
         run: |
-          zip -r deploy.zip . -x ".git/*"
+          echo "==== REPO ROOT ===="
+          ls -la
+          echo "==== Check for .next after CI build (for sanity) ===="
+          ls -la .next || echo ".next not found in CI (this is just a sanity check)"
 
       - name: Deploy to Azure Web App
-        uses: azure/webapps-deploy@v3
+        uses: azure/webapps-deploy@v2
         with:
           app-name: 'udo-cvagent'
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: 'deploy.zip'
+          package: '.'
