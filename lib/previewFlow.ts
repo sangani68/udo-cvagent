@@ -4,6 +4,7 @@ import { toPreviewModel, type CvData } from "./cv-view";
 export type TemplateId =
   | "pdf-kyndryl"
   | "pdf-europass"
+  | "pdf-europass2"
   | "docx-ep"
   | "pptx-kyndryl-sm";
 

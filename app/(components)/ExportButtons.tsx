@@ -4,10 +4,51 @@ import { exportPdf, exportDocx, exportPptx } from "@/lib/exportClient";
 
 export function ExportButtons({ cv }: { cv: any }) {
   const [busy, setBusy] = React.useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = React.useState<string | null>(null);
+  const [syncProgress, setSyncProgress] = React.useState(0);
+
+  async function syncIndex() {
+    try {
+      setSyncStatus("Indexing…");
+      setSyncProgress(10);
+      await fetch("/api/setup-indexer", { method: "POST" }).catch(() => {});
+      setSyncProgress(30);
+      let idxRes = await fetch("/api/blob/run-and-wait?timeout=300&interval=3000&forceStart=1", {
+        method: "POST",
+      });
+      let idxJson = await idxRes.json().catch(() => ({}));
+      const hasIndexerError =
+        Array.isArray(idxJson?.lastResult?.errors) &&
+        idxJson.lastResult.errors.length > 0;
+      if (hasIndexerError) {
+        setSyncProgress(40);
+        await fetch("/api/reset-blob-index/safe", { method: "POST" }).catch(() => {});
+        idxRes = await fetch("/api/blob/run-and-wait?timeout=300&interval=3000&forceStart=1", {
+          method: "POST",
+        });
+        idxJson = await idxRes.json().catch(() => ({}));
+      }
+      setSyncProgress(70);
+      await fetch("/api/hydrate-hybrid", { method: "POST" });
+      setSyncStatus("Indexed");
+      setSyncProgress(100);
+      setTimeout(() => setSyncStatus(null), 4000);
+      setTimeout(() => setSyncProgress(0), 4000);
+    } catch {
+      setSyncStatus("Indexing failed");
+      setSyncProgress(0);
+    }
+  }
 
   async function run(label: string, fn: () => Promise<any>) {
     setBusy(label);
-    try { await fn(); } finally { setBusy(null); }
+    setSyncStatus(null);
+    try {
+      await fn();
+      await syncIndex();
+    } finally {
+      setBusy(null);
+    }
   }
 
   return (
@@ -43,6 +84,17 @@ export function ExportButtons({ cv }: { cv: any }) {
       >
         {busy === "pptx" ? "Exporting…" : "PPT — Kyndryl SM"}
       </button>
+      {syncStatus ? (
+        <div className="rounded-xl border p-3 text-xs text-gray-600">
+          <div className="mb-1">{syncStatus}</div>
+          <div className="h-2 w-full overflow-hidden rounded bg-gray-200">
+            <div
+              className="h-full bg-black transition-all"
+              style={{ width: `${Math.min(100, Math.max(0, syncProgress))}%` }}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

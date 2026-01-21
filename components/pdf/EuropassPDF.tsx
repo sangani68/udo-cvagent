@@ -1,47 +1,146 @@
 // components/pdf/EuropassPDF.tsx
+//
+// Europass PDF template (v1, two-column)
+// - Header: EU logo from /public/eu-logo.png or candidate.euLogoUrl (no "europass" text)
+// - Left column: photo + personal info + skills + languages
+// - Right column: profile + work experience + education
+//
+// Uses fixed widths to avoid overflow and "Helvetica" everywhere.
+
 import * as React from "react";
+import fs from "fs";
+import path from "path";
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer";
 import type { CvData } from "@/lib/cv-view";
 
-const EURO_BLUE = "#0B3B94";
-const SOFT_GRAY = "#F3F4F6";
-const isSafeImg = (u?: string) => !!u && /^data:image\/(png|jpe?g);base64,/i.test(u);
+const EURO_BLUE = "#003399";
+const TEXT_PRIMARY = "#111111";
+const TEXT_MUTED = "#555555";
+const SOFT_GRAY = "#F5F7FA";
+
 const s = (v: any) => (v == null ? "" : String(v));
+const isSafeImg = (u?: string) =>
+  !!u && /^data:image\/(png|jpe?g);base64,/i.test(u);
+
+// Try to load a static EU logo PNG from /public/eu-logo.png at build/runtime.
+const EU_LOGO_DATA_URL: string | null = (() => {
+  try {
+    const filePath = path.join(process.cwd(), "public", "eu-logo.png");
+    const buf = fs.readFileSync(filePath);
+    return `data:image/png;base64,${buf.toString("base64")}`;
+  } catch {
+    return null;
+  }
+})();
+
+// A4: width ≈ 595pt; we stay comfortably inside
+const LEFT_COL_WIDTH = 160;
+const RIGHT_COL_WIDTH = 340;
 
 const styles = StyleSheet.create({
-  page: { padding: 28, fontSize: 10.5, fontFamily: "Helvetica" },
-  headerBar: { backgroundColor: EURO_BLUE, height: 14, marginBottom: 8 },
-  headRow: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
-  logo: { width: 80, height: 22 },
-  title: { color: EURO_BLUE, fontSize: 16, marginLeft: 8, fontWeight: "bold" },
-  grid: { flexDirection: "row" },
-  colLeft: { width: 170 },
-  spacer: { width: 14 },
-  colRight: { flexGrow: 1 },
-  card: { backgroundColor: SOFT_GRAY, borderRadius: 6, padding: 10, marginBottom: 8 },
-  label: { color: EURO_BLUE, fontSize: 10.5, textTransform: "uppercase", marginBottom: 6, fontWeight: "bold" },
-  photoWrap: { width: 170, backgroundColor: SOFT_GRAY, borderRadius: 6, padding: 6, marginBottom: 8, alignItems: "center" },
-  photo: { width: 150, borderRadius: 4 },
+  page: {
+    paddingTop: 24,
+    paddingBottom: 28,
+    paddingHorizontal: 32,
+    fontSize: 10.5,
+    fontFamily: "Helvetica",
+    color: TEXT_PRIMARY,
+  },
+
+  // Header
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  euLogo: {
+    width: 140,
+    height: 38,
+  },
+  headerRight: {
+    alignItems: "flex-end",
+  },
+  headerLine: {
+    marginTop: 4,
+    marginBottom: 10,
+    height: 2,
+    backgroundColor: EURO_BLUE,
+  },
+
+  body: {
+    flexDirection: "row",
+    width: "100%",
+  },
+
+  colLeft: {
+    width: LEFT_COL_WIDTH,
+    marginRight: 14,
+  },
+
+  colRight: {
+    width: RIGHT_COL_WIDTH,
+  },
+
+  card: {
+    backgroundColor: SOFT_GRAY,
+    borderRadius: 6,
+    padding: 10,
+    marginBottom: 8,
+  },
+  label: {
+    color: EURO_BLUE,
+    fontSize: 10.5,
+    textTransform: "uppercase",
+    marginBottom: 6,
+    fontWeight: "bold",
+  },
+
+  photoWrap: {
+    width: LEFT_COL_WIDTH,
+    alignSelf: "center",
+    backgroundColor: SOFT_GRAY,
+    borderRadius: 6,
+    padding: 6,
+    marginBottom: 8,
+    alignItems: "center",
+  },
+  photo: { width: LEFT_COL_WIDTH - 20, height: 140, borderRadius: 4 },
+
   section: { marginBottom: 10 },
-  h1: { color: EURO_BLUE, fontSize: 12, marginBottom: 6, textTransform: "uppercase", fontWeight: "bold" },
+  h1: {
+    color: EURO_BLUE,
+    fontSize: 12,
+    marginBottom: 6,
+    textTransform: "uppercase",
+    fontWeight: "bold",
+  },
   row: { marginBottom: 6 },
   li: { marginLeft: 10, marginTop: 2 },
-  muted: { color: "#4B5563" },
+  muted: { color: TEXT_MUTED },
   breakable: {},
 });
 
 function getExperiences(c: any): any[] {
-  const exps = Array.isArray(c?.experiences) && c.experiences.length ? c.experiences
-            : Array.isArray(c?.experience)   && c.experience.length   ? c.experience
-            : [];
+  const exps =
+    (Array.isArray(c?.experiences) && c.experiences.length && c.experiences) ||
+    (Array.isArray(c?.experience) && c.experience.length && c.experience) ||
+    [];
   return exps || [];
 }
+
 function getEducation(c: any): any[] {
-  const eds = Array.isArray(c?.education)  && c.education.length  ? c.education
-            : Array.isArray(c?.educations) && c.educations.length ? c.educations
-            : [];
+  const eds =
+    (Array.isArray(c?.education) && c.education.length && c.education) ||
+    (Array.isArray(c?.educations) && c.educations.length && c.educations) ||
+    [];
   return eds || [];
 }
+
 function normalizeLines(bullets: any[]): string[] {
   const arr = Array.isArray(bullets) ? bullets : [];
   return arr
@@ -52,41 +151,67 @@ function normalizeLines(bullets: any[]): string[] {
 }
 
 export default function EuropassPDF({ data }: { data: CvData }) {
-  const c = (data?.candidate ?? {}) as CvData["candidate"];
+  const c = (data?.candidate ?? {}) as any;
 
   const exps = getExperiences(c);
   const edus = getEducation(c);
 
+  const contacts = [c.location, c.email, c.phone, c.website, c.linkedin]
+    .filter(Boolean)
+    .map(s)
+    .join(" · ");
+
+  // EU logo: candidate.euLogoUrl (data URL) overrides static file if present
+  const euLogoSrc =
+    c.euLogoUrl && isSafeImg(c.euLogoUrl) ? c.euLogoUrl : EU_LOGO_DATA_URL;
+
   return (
     <Document>
       <Page size="A4" style={styles.page} wrap>
-        <View style={styles.headerBar} />
-        <View style={styles.headRow}>
-          {isSafeImg((c as any).europassLogoUrl) ? <Image src={(c as any).europassLogoUrl!} style={styles.logo} /> : null}
-          <Text style={styles.title}>Curriculum Vitae — Europass</Text>
+        {/* Header with logo only (top right) */}
+        <View style={styles.headerRow}>
+          <View style={styles.headerLeft} />
+          <View style={styles.headerRight}>
+            {euLogoSrc && <Image src={euLogoSrc} style={styles.euLogo} />}
+          </View>
         </View>
+        <View style={styles.headerLine} />
 
-        <View style={styles.grid}>
+        {/* Two-column body */}
+        <View style={styles.body}>
+          {/* LEFT COLUMN */}
           <View style={styles.colLeft}>
-            {isSafeImg(c.photoUrl) ? (
+            {typeof c.photoUrl === "string" && c.photoUrl ? (
               <View style={styles.photoWrap}>
-                <Image src={c.photoUrl!} style={styles.photo} />
+                <Image src={c.photoUrl} style={styles.photo} />
               </View>
             ) : null}
 
             <View style={styles.card}>
               <Text style={styles.label}>Personal Information</Text>
-              <Text style={styles.breakable}>{s(c.fullName) || "—"}</Text>
-              {c.title ? <Text style={[styles.muted, styles.breakable]}>{s(c.title)}</Text> : null}
-              <Text style={[styles.muted, { marginTop: 6 }, styles.breakable]}>
-                {[c.location, c.email, c.phone].filter(Boolean).map(s).join(" · ")}
+              <Text style={styles.breakable}>
+                {s(c.fullName || c.name) || "—"}
               </Text>
+              {c.title ? (
+                <Text style={[styles.muted, styles.breakable]}>
+                  {s(c.title)}
+                </Text>
+              ) : null}
+              {contacts ? (
+                <Text
+                  style={[styles.muted, { marginTop: 6 }, styles.breakable]}
+                >
+                  {contacts}
+                </Text>
+              ) : null}
             </View>
 
             {Array.isArray(c.skills) && c.skills.length ? (
               <View style={styles.card}>
                 <Text style={styles.label}>Skills</Text>
-                <Text style={styles.breakable}>{s(c.skills.join(" · "))}</Text>
+                <Text style={styles.breakable}>
+                  {s(c.skills.join(" · "))}
+                </Text>
               </View>
             ) : null}
 
@@ -107,8 +232,7 @@ export default function EuropassPDF({ data }: { data: CvData }) {
             ) : null}
           </View>
 
-          <View style={styles.spacer} />
-
+          {/* RIGHT COLUMN */}
           <View style={styles.colRight}>
             {c.summary ? (
               <View style={styles.section}>
@@ -125,15 +249,21 @@ export default function EuropassPDF({ data }: { data: CvData }) {
                   return (
                     <View key={i} style={styles.row} wrap>
                       <Text style={styles.breakable}>
-                        {s(e?.title || e?.role) || "Role"}{e?.company || e?.employer ? " — " + s(e?.company || e?.employer) : ""}
+                        {s(e?.title || e?.role) || "Role"}
+                        {e?.company || e?.employer
+                          ? " — " + s(e?.company || e?.employer)
+                          : ""}
                       </Text>
-                      {(e?.start || e?.end || e?.location) ? (
+                      {e?.start || e?.end || e?.location ? (
                         <Text style={styles.breakable}>
-                          {s(e?.start) || "—"} – {s(e?.end) || "Present"}{e?.location ? ` · ${s(e?.location)}` : ""}
+                          {s(e?.start) || "—"} – {s(e?.end) || "Present"}
+                          {e?.location ? ` · ${s(e?.location)}` : ""}
                         </Text>
                       ) : null}
                       {lines.map((t, j) => (
-                        <Text key={j} style={[styles.li, styles.breakable]}>• {t}</Text>
+                        <Text key={j} style={[styles.li, styles.breakable]}>
+                          • {t}
+                        </Text>
                       ))}
                     </View>
                   );
@@ -147,10 +277,13 @@ export default function EuropassPDF({ data }: { data: CvData }) {
                 {edus.map((ed: any, i: number) => (
                   <View key={i} style={styles.row}>
                     <Text style={styles.breakable}>
-                      {s(ed?.degree) || "Degree"}{ed?.school ? " — " + s(ed?.school) : ""}
+                      {s(ed?.degree) || "Degree"}
+                      {ed?.school ? " — " + s(ed?.school) : ""}
                     </Text>
-                    {(ed?.start || ed?.end) ? (
-                      <Text style={styles.breakable}>{s(ed?.start) || "—"} – {s(ed?.end) || "—"}</Text>
+                    {ed?.start || ed?.end ? (
+                      <Text style={styles.breakable}>
+                        {s(ed?.start) || "—"} – {s(ed?.end) || "—"}
+                      </Text>
                     ) : null}
                   </View>
                 ))}

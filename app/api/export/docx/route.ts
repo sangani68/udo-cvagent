@@ -20,6 +20,8 @@ import {
 
 import { buildViewData } from "@/lib/preview-pipeline";
 import { toEpFormData } from "@/lib/ep-docx";
+import { uploadToCvkb } from "@/lib/azure";
+import { buildExportFilename } from "@/lib/export-utils";
 
 type Body = {
   data?: any;
@@ -755,13 +757,30 @@ export async function POST(req: NextRequest) {
 
     const buffer = (await Packer.toBuffer(doc)) as Buffer;
 
-    const safeName = (fullName || "candidate").replace(
-      /[^\p{L}\p{N}_ -]/gu,
-      "_"
+    const filename = buildExportFilename(
+      "EuropeanParliament",
+      fullName || "Candidate",
+      "docx"
     );
-    const lang = (locale || targetLocale || "en").toLowerCase();
-    const stamp = dayjs().format("YYYYMMDD");
-    const filename = `${safeName}_EP_${lang}_${stamp}.docx`;
+
+    // Best-effort: upload to blob + sync into search
+    try {
+      await uploadToCvkb(`exports/${filename}`, buffer, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+      const origin = new URL(req.url).origin;
+      await fetch(`${origin}/api/blob/run-and-wait?timeout=120&interval=3000`, {
+        method: "POST",
+      });
+      await fetch(`${origin}/api/hydrate-hybrid`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          since: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+          top: 1000,
+        }),
+      });
+    } catch (e) {
+      console.error("[export/docx] post-export sync failed:", e);
+    }
 
     return fileResponse(buffer, filename);
   } catch (err: any) {

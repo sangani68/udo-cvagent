@@ -2,6 +2,7 @@
 import { BlobServiceClient } from "@azure/storage-blob";
 import type { Readable } from "node:stream";
 import * as fs from "node:fs/promises";
+import * as os from "node:os";
 import * as path from "node:path";
 
 /**
@@ -18,6 +19,7 @@ function sniffMime(bytes: Uint8Array, filename?: string) {
     if (name.endsWith(".pptx")) return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
     return "application/zip";
   }
+  if (name.endsWith(".doc")) return "application/msword";
   if (name.endsWith(".txt") || name.endsWith(".md")) return "text/plain";
   return "application/octet-stream";
 }
@@ -71,6 +73,32 @@ const textNodes = Array.from(xml.matchAll(/<w:t[^>]*>(.*?)<\/w:t>/g)).map(
   return textNodes.join("\n");
 }
 
+async function extractDocxMammoth(bytes: Uint8Array): Promise<string> {
+  try {
+    const mammoth = await import("mammoth");
+    const result = await mammoth.extractRawText({ buffer: Buffer.from(bytes) });
+    return isLikelyText(result?.value) ? result.value : "";
+  } catch {
+    return "";
+  }
+}
+
+async function extractDoc(bytes: Uint8Array, filename?: string): Promise<string> {
+  try {
+    const mod: any = await import("word-extractor");
+    const WordExtractor = mod?.default ?? mod?.WordExtractor ?? mod;
+    const extractor = new WordExtractor();
+    const tmp = path.join(os.tmpdir(), filename || `upload-${Date.now()}.doc`);
+    await fs.writeFile(tmp, Buffer.from(bytes));
+    const doc = await extractor.extract(tmp);
+    await fs.unlink(tmp).catch(() => {});
+    const text = doc?.getBody?.() || doc?.getDocumentText?.() || doc?.text || "";
+    return isLikelyText(text) ? text : "";
+  } catch {
+    return "";
+  }
+}
+
 /**
  * Extract visible text from PPTX.
  * - read ppt/slides/slide*.xml
@@ -114,7 +142,7 @@ export async function extractTextFromBytes(bytes: Uint8Array, filename?: string)
   if (mime === "application/pdf") {
     try {
       const pdfParse = (await import("pdf-parse")).default as any;
-      const out = await pdfParse(bytes);
+      const out = await pdfParse(Buffer.from(bytes));
       return isLikelyText(out?.text) ? out.text : "";
     } catch {
       // pdf-parse not installed or failed
@@ -131,13 +159,19 @@ export async function extractTextFromBytes(bytes: Uint8Array, filename?: string)
     try {
       const zip = await unzip(bytes);
       if (mime.includes("wordprocessingml") || zip.file("word/document.xml")) {
-        return await extractDocx(zip);
+        const text = await extractDocx(zip);
+        return isLikelyText(text) ? text : await extractDocxMammoth(bytes);
       }
       // fall back to pptx
       return await extractPptx(zip);
     } catch {
       return "";
     }
+  }
+
+  // Legacy Word (.doc)
+  if (mime === "application/msword") {
+    return await extractDoc(bytes, filename);
   }
 
   return "";
@@ -183,7 +217,7 @@ export async function getTextFromAny(input: any): Promise<{ text: string; note?:
   }
 
   // ADLS blob path (url or name fields)
-  const container = process.env.AZURE_STORAGE_CONTAINER;
+  const container = process.env.AZURE_STORAGE_CONTAINER || "cvkb";
   const conn = process.env.AZURE_STORAGE_CONNECTION_STRING || process.env.AZURE_STORAGE_CONN_STRING;
 
   const url =

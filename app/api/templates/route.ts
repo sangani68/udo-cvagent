@@ -1,10 +1,16 @@
+// app/api/templates/route.ts
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 
 // Keep these ids in sync with lib/previewFlow.ts (TemplateId union)
-type TemplateId = "pdf-kyndryl" | "pdf-europass" | "docx-ep" | "pptx-kyndryl-sm";
+type TemplateId =
+  | "pdf-kyndryl"
+  | "pdf-europass"
+  | "pdf-europass2"
+  | "docx-ep"
+  | "pptx-kyndryl-sm";
 
 type TemplateEntry = {
   id: TemplateId;          // <- used by the UI
@@ -47,6 +53,20 @@ const templates: TemplateEntry[] = [
       method: "POST",
       // server route can select Europass component when template === "europass"
       template: "europass",
+    },
+  },
+  {
+    id: "pdf-europass2",
+    key: "pdf-europass2",
+    label: "Europass 2 PDF",
+    kind: "pdf",
+    ext: "pdf",
+    previewable: true,
+    export: {
+      path: "/api/export/pdf",
+      method: "POST",
+      // server route can select Europass2 component when template === "europass2"
+      template: "europass2",
     },
   },
   {

@@ -3,6 +3,8 @@ import { NextRequest } from "next/server";
 import React from "react";
 import ReactPDF from "@react-pdf/renderer"; // use default import for wide version support
 import { buildViewData } from "@/lib/preview-pipeline";
+import { uploadToCvkb } from "@/lib/azure";
+import { buildExportFilename } from "@/lib/export-utils";
 
 export const runtime = "nodejs";
 
@@ -11,6 +13,7 @@ function mapTemplateId(id?: string): string {
   const t = (id || "pdf-kyndryl").toLowerCase();
   if (t === "pdf-kyndryl") return "kyndryl";
   if (t === "pdf-europass") return "europass";
+  if (t === "pdf-europass2") return "europass2";
   return t;
 }
 
@@ -18,25 +21,19 @@ function mapTemplateId(id?: string): string {
 const loaders: Record<string, () => Promise<any>> = {
   kyndryl: () => import("../../../../components/pdf/KyndrylPDF"),
   europass: () => import("../../../../components/pdf/EuropassPDF"),
+  europass2: () => import("../../../../components/pdf/Europass2PDF"),
 };
 
 function pickComponent(mod: any) {
   return mod?.default ?? Object.values(mod || {})[0];
 }
 
-// Convert Node stream → Web ReadableStream for Response
-function nodeToWebStream(nodeStream: any): ReadableStream<Uint8Array> {
-  return new ReadableStream<Uint8Array>({
-    start(controller) {
-      nodeStream.on?.("data", (chunk: any) => {
-        if (chunk instanceof Uint8Array) controller.enqueue(chunk);
-        else if (typeof Buffer !== "undefined" && Buffer.isBuffer?.(chunk)) controller.enqueue(new Uint8Array(chunk));
-        else if (typeof chunk === "string") controller.enqueue(new TextEncoder().encode(chunk));
-        else controller.enqueue(new Uint8Array(Buffer.from(chunk)));
-      });
-      nodeStream.on?.("end", () => controller.close());
-      nodeStream.on?.("error", (err: any) => controller.error(err));
-    },
+async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  return new Promise<Buffer>((resolve, reject) => {
+    stream.on("data", (c) => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
+    stream.on("end", () => resolve(Buffer.concat(chunks)));
+    stream.on("error", reject);
   });
 }
 
@@ -44,12 +41,20 @@ function sanitizeFilename(s: string) {
   return (s || "cv").replace(/[\\/:*?"<>|]/g, "_").replace(/\s+/g, " ").trim();
 }
 
+function templateLabel(id?: string) {
+  const t = (id || "").toLowerCase();
+  if (t === "pdf-kyndryl") return "Kyndryl";
+  if (t === "pdf-europass") return "Europass";
+  if (t === "pdf-europass2") return "Europass2";
+  return id || "Template";
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
     // mask → normalize → deep-translate (and safe candidate.name)
-    const { data, template, locale } = await buildViewData({
+    const { data, template, locale, cv } = await buildViewData({
       cv: body?.cv ?? body?.data ?? body,
       template: body?.template,
       locale: body?.locale ?? "en",
@@ -59,59 +64,93 @@ export async function POST(req: NextRequest) {
     const tpl = mapTemplateId(template);
     const load = loaders[tpl];
     if (!load) {
-      return new Response(JSON.stringify({ error: `Unknown PDF template: ${tpl}` }), { status: 400 });
+      return new Response(
+        JSON.stringify({ error: `Unknown PDF template: ${tpl}` }),
+        { status: 400 }
+      );
     }
 
     const mod = await load();
     const Template = pickComponent(mod);
     if (!Template) {
-      return new Response(JSON.stringify({ error: `Failed to load PDF component: ${tpl}` }), { status: 500 });
+      return new Response(
+        JSON.stringify({ error: `Failed to load PDF component: ${tpl}` }),
+        { status: 500 }
+      );
     }
 
     // Render with React-PDF server API → Node stream (no Buffer / no PDFDocument to Response)
     const element = React.createElement(Template, { data, locale });
-    // Prefer renderToStream when available; otherwise pdf(element).toStream()
     const nodeStream =
       typeof (ReactPDF as any).renderToStream === "function"
         ? await (ReactPDF as any).renderToStream(element)
-        : typeof (ReactPDF as any).pdf === "function" && typeof (ReactPDF as any).pdf(element)?.toStream === "function"
+        : typeof (ReactPDF as any).pdf === "function" &&
+          typeof (ReactPDF as any).pdf(element)?.toStream === "function"
         ? await (ReactPDF as any).pdf(element).toStream()
         : null;
 
-    if (!nodeStream) {
-      // Fallback to toBuffer() (promise-form or callback-form)
+    let buf: Buffer | null = null;
+    if (nodeStream) {
+      buf = await streamToBuffer(nodeStream);
+    } else {
       const pdfInstance = (ReactPDF as any).pdf?.(element);
       if (pdfInstance?.toBuffer) {
         const out = await pdfInstance.toBuffer();
-        const buf =
-          out instanceof ArrayBuffer ? Buffer.from(out)
-          : ArrayBuffer.isView(out) ? Buffer.from(out as Uint8Array)
-          : Buffer.isBuffer(out) ? out
-          : Buffer.from(out ?? []);
-        const filename = sanitizeFilename(data?.candidate?.name || "cv") + ".pdf";
-        return new Response(buf, {
-          status: 200,
-          headers: {
-            "Content-Type": "application/pdf",
-            "Content-Disposition": `attachment; filename="${filename}"`,
-            "Cache-Control": "no-store",
-          },
-        });
+        buf =
+          out instanceof ArrayBuffer
+            ? Buffer.from(out)
+            : ArrayBuffer.isView(out)
+            ? Buffer.from(out as Uint8Array)
+            : Buffer.isBuffer(out)
+            ? out
+            : Buffer.from(out ?? []);
       }
-      return new Response(JSON.stringify({ error: "React-PDF did not expose a stream or buffer" }), { status: 500 });
     }
 
-    const webStream = nodeToWebStream(nodeStream);
-    const filename = sanitizeFilename(data?.candidate?.name || "cv") + ".pdf";
-    return new Response(webStream, {
+    if (!buf || buf.byteLength === 0) {
+      return new Response(
+        JSON.stringify({ error: "React-PDF did not expose a stream or buffer" }),
+        { status: 500 }
+      );
+    }
+
+    const filename = buildExportFilename(
+      templateLabel(template),
+      data?.candidate?.name || "Candidate",
+      "pdf"
+    );
+
+    // Best-effort: upload to blob + sync into search
+    try {
+      await uploadToCvkb(`exports/${filename}`, buf, "application/pdf");
+      const origin = new URL(req.url).origin;
+      await fetch(`${origin}/api/blob/run-and-wait?timeout=120&interval=3000`, {
+        method: "POST",
+      });
+      await fetch(`${origin}/api/hydrate-hybrid`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          since: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+          top: 1000,
+        }),
+      });
+    } catch (e) {
+      console.error("[export/pdf] post-export sync failed:", e);
+    }
+
+    return new Response(buf, {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Disposition": `attachment; filename="${sanitizeFilename(filename)}"`,
         "Cache-Control": "no-store",
       },
     });
   } catch (err: any) {
-    return new Response(JSON.stringify({ error: String(err?.message ?? err) }), { status: 500 });
+    return new Response(
+      JSON.stringify({ error: String(err?.message ?? err) }),
+      { status: 500 }
+    );
   }
 }

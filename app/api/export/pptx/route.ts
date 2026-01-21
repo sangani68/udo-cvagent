@@ -5,6 +5,8 @@ import { NextRequest, NextResponse } from "next/server";
 import type { CVJson } from "@/lib/cvSchema";
 import { buildViewData } from "@/lib/preview-pipeline";
 import { buildHtmlPreview } from "@/lib/htmlPreview";
+import { uploadToCvkb } from "@/lib/azure";
+import { buildExportFilename } from "@/lib/export-utils";
 
 type Payload = {
   data?: CVJson;
@@ -44,12 +46,30 @@ export async function POST(req: NextRequest) {
     const html = await buildHtmlPreview(data, templateId);
     const bytes = Buffer.from(html, "utf8");
 
-    const filenameBase =
-      data?.candidate?.name
-        ? data.candidate.name.replace(/[^\w.-]+/g, "_")
-        : "candidate";
+    const filename = buildExportFilename(
+      "KyndrylSM",
+      data?.candidate?.name || "Candidate",
+      "pptx.html"
+    );
 
-    const filename = `${filenameBase}_${templateId}.pptx.html`;
+    // Best-effort: upload to blob + sync into search
+    try {
+      await uploadToCvkb(`exports/${filename}`, bytes, "text/html; charset=utf-8");
+      const origin = new URL(req.url).origin;
+      await fetch(`${origin}/api/blob/run-and-wait?timeout=120&interval=3000`, {
+        method: "POST",
+      });
+      await fetch(`${origin}/api/hydrate-hybrid`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          since: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+          top: 1000,
+        }),
+      });
+    } catch (e) {
+      console.error("[export/pptx] post-export sync failed:", e);
+    }
 
     return new NextResponse(bytes, {
       status: 200,

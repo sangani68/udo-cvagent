@@ -34,14 +34,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   beta
                 </span>
               </div>
-              <nav className="hidden items-center gap-6 text-sm text-zinc-600 md:flex">
-                <a className="hover:text-zinc-900" href="#">
-                  Docs
-                </a>
-                <a className="hover:text-zinc-900" href="#">
-                  Support
-                </a>
-              </nav>
+              <div />
             </div>
           </div>
           <div className="h-[3px] w-full" style={{ backgroundColor: "var(--brand)" }} />
@@ -58,13 +51,28 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <div className="flex flex-col gap-3 text-sm text-zinc-600 md:flex-row md:items-center md:justify-between">
               <div>© {year} Kyndryl (demo). All rights reserved.</div>
               <div className="flex flex-wrap items-center gap-4">
-                <a href="#" className="hover:text-zinc-900">
+                <a
+                  href="https://www.kyndryl.com/us/en/privacy"
+                  className="hover:text-zinc-900"
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   Privacy &amp; GDPR
                 </a>
-                <a href="#" className="hover:text-zinc-900">
+                <a
+                  href="https://www.kyndryl.com/us/en/cyber-security"
+                  className="hover:text-zinc-900"
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   Security
                 </a>
-                <a href="#" className="hover:text-zinc-900">
+                <a
+                  href="https://www.kyndryl.com/us/en/terms"
+                  className="hover:text-zinc-900"
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   Terms
                 </a>
               </div>

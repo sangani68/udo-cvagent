@@ -141,6 +141,7 @@ export function toPreviewModel(cv: CVJson): CvData {
   const email    = (c0.email ?? contacts.email ?? "").trim();
   const phone    = (c0.phone ?? contacts.phone ?? "").trim();
   const linkedin = (c0.linkedin ?? contacts.linkedin ?? "").trim();
+  const website  = (c0.website ?? contacts.website ?? "").trim();
   const location = (c0.location ?? "").trim();
   const summary  = (c0.summary ?? "").trim();
   const photoUrl = (c0.photoUrl ?? c0.photo?.dataUrl ?? "").trim();
@@ -240,6 +241,14 @@ export function toPreviewModel(cv: CVJson): CvData {
     }))
     .filter((l) => l.name);
 
+  const links = Array.isArray(c0.links) ? [...c0.links] : [];
+  if (website && !links.some((l: any) => (l?.url || "") === website)) {
+    links.push({ label: "Website", url: website });
+  }
+  if (linkedin && !links.some((l: any) => (l?.url || "") === linkedin)) {
+    links.push({ label: "LinkedIn", url: linkedin });
+  }
+
   const candidate = {
     fullName: fullName || "Candidate",
     name: fullName || "Candidate",
@@ -248,13 +257,15 @@ export function toPreviewModel(cv: CVJson): CvData {
     email,
     phone,
     linkedin,
+    website,
     location,
     photoUrl,
     skills,
     experiences,
     education,
     languages,
-    contacts: { email, phone, linkedin },
+    contacts: { email, phone, linkedin, website },
+    links,
   };
 
   return { candidate, cv: src };

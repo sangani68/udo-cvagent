@@ -109,7 +109,34 @@ export default function LandingPage() {
 
         <footer className="mt-6 text-center text-xs text-slate-400">
           <p>© 2025 Kyndryl (demo). All rights reserved.</p>
-          <p className="mt-1">Privacy &amp; GDPR · Security · Terms</p>
+          <p className="mt-1">
+            <a
+              href="https://www.kyndryl.com/us/en/privacy"
+              className="hover:text-slate-500"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Privacy &amp; GDPR
+            </a>{" "}
+            ·{" "}
+            <a
+              href="https://www.kyndryl.com/us/en/cyber-security"
+              className="hover:text-slate-500"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Security
+            </a>{" "}
+            ·{" "}
+            <a
+              href="https://www.kyndryl.com/us/en/terms"
+              className="hover:text-slate-500"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Terms
+            </a>
+          </p>
         </footer>
       </div>
     </main>

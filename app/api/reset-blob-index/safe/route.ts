@@ -105,9 +105,9 @@ export async function POST() {
       },
 
       // Map blob path → id using base64Encode (safe key)
-      outputFieldMappings: [
+      fieldMappings: [
         {
-          sourceFieldName: "/document/metadata_storage_path",
+          sourceFieldName: "metadata_storage_path",
           targetFieldName: "id",
           mappingFunction: { name: "base64Encode" },
         },

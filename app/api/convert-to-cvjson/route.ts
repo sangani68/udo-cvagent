@@ -59,15 +59,38 @@ async function readBytes(urlOrPath: string, origin: string): Promise<Uint8Array>
 async function toTextFromBytes(name: string, bytes: Uint8Array) {
   if (/\.(txt|md)$/i.test(name)) return new TextDecoder().decode(bytes);
   const text = await extractTextFromBytes(Buffer.from(bytes), name);
-  if (!text?.trim()) throw new Error("Extractor returned empty text");
+  if (!text?.trim()) {
+    const ext = (name.split(".").pop() || "").toLowerCase();
+    const hint =
+      ext === "pdf"
+        ? "The PDF may be scanned or image-only. Try a text-based PDF or DOCX."
+        : ext === "doc"
+        ? "The .doc file may be protected or image-only. Try saving as .docx."
+        : "Try a text-based PDF or DOCX.";
+    throw new Error(`Extractor returned empty text. ${hint}`);
+  }
   return text;
 }
 
 /* ── Handler ── */
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json().catch(() => ({}))) as UseThisPayload;
+    const ct = (req.headers.get("content-type") || "").toLowerCase();
     const origin = `${req.nextUrl.protocol}//${req.nextUrl.host}`;
+
+    // 0) Binary upload path (PDF/DOCX/etc from UI)
+    if (!ct.includes("application/json")) {
+      const bytes = new Uint8Array(await req.arrayBuffer());
+      if (bytes?.length) {
+        const name = req.headers.get("x-filename") || "upload";
+        const text = await toTextFromBytes(name, bytes);
+        const cv = await deepExtractLLM(text);
+        (cv.meta = cv.meta || {}).source = name;
+        return NextResponse.json({ ok: true, cv });
+      }
+    }
+
+    const body = (await req.json().catch(() => ({}))) as UseThisPayload;
 
     // 1) Inline content
     if (typeof body.content === "string" && body.content.trim()) {

@@ -8,26 +8,33 @@ type Result = {
   url?: string;
   metadata_storage_path?: string;
   metadata_storage_name?: string;
+  updatedAt?: string;
   content?: string;
 };
 
-type Props = { onSelect: (payload: any) => void };
+type Props = {
+  onSelect: (payload: any) => void;
+  refreshKey?: number;
+  autoQuery?: string;
+};
 
-export default function DocSearchPanel({ onSelect }: Props) {
+export default function DocSearchPanel({ onSelect, refreshKey, autoQuery }: Props) {
   const [q, setQ] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [results, setResults] = React.useState<Result[]>([]);
   const [err, setErr] = React.useState<string | null>(null);
 
-  async function doSearch() {
+  async function doSearch(qOverride?: string) {
     try {
       setBusy(true);
       setErr(null);
       setResults([]);
+      const query = typeof qOverride === "string" ? qOverride : q;
+      if (typeof qOverride === "string") setQ(qOverride);
       const res = await fetch("/api/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ q }),
+        body: JSON.stringify({ q: query }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.error || `Search failed (${res.status})`);
@@ -38,6 +45,14 @@ export default function DocSearchPanel({ onSelect }: Props) {
       setBusy(false);
     }
   }
+
+  React.useEffect(() => {
+    if (typeof refreshKey !== "number") return;
+    const query = autoQuery ?? q;
+    if (!query && results.length === 0) return;
+    doSearch(query);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey]);
 
   function buildPayload(item: Result) {
     const name = item.name || item.metadata_storage_name || item.id || "document";
@@ -58,6 +73,17 @@ export default function DocSearchPanel({ onSelect }: Props) {
 
     // Last resort: send whole item (API will error with details if unusable)
     return { item, filename: name };
+  }
+
+  function formatUpdated(value?: string) {
+    if (!value) return "";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toLocaleDateString(undefined, {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
   }
 
   return (
@@ -87,11 +113,22 @@ export default function DocSearchPanel({ onSelect }: Props) {
           {results.map((r, i) => {
             const name = r.name || r.metadata_storage_name || r.id || `item-${i}`;
             const path = r.url || r.metadata_storage_path || r.metadata_storage_name || "";
+            const updated =
+              (r as any).updatedAt ||
+              (r as any).metadata_storage_last_modified ||
+              (r as any).fields?.updatedAt ||
+              "";
+            const updatedLabel = formatUpdated(updated);
             return (
               <div key={i} className="flex items-center justify-between gap-3 p-2">
                 <div className="min-w-0">
                   <div className="truncate text-sm font-medium">{name}</div>
                   <div className="truncate text-xs text-gray-500">{String(path)}</div>
+                  {updatedLabel ? (
+                    <div className="truncate text-[11px] text-gray-500">
+                      Created: {updatedLabel}
+                    </div>
+                  ) : null}
                 </div>
                 <button
                   onClick={() => onSelect(buildPayload(r))}

@@ -1,4 +1,5 @@
 import { BlobServiceClient } from "@azure/storage-blob";
+import { yyyymmdd } from "./cv/naming";
 
 export function nowStampUTC() {
   const d = new Date();
@@ -8,6 +9,13 @@ export function nowStampUTC() {
 
 export function safeStem(name = "Candidate") {
   return String(name).trim().replace(/[^\p{L}\p{N}_ -]+/gu, "").replace(/\s+/g, "_");
+}
+
+export function buildExportFilename(templateName: string, candidateName: string, ext: string) {
+  const tpl = safeStem(templateName || "Template");
+  const cand = safeStem(candidateName || "Candidate");
+  const date = yyyymmdd();
+  return `${tpl}_${cand}_${date}.${ext}`;
 }
 
 export async function uploadBytesToAdls(container: string, blobName: string, bytes: Uint8Array | Buffer, contentType: string) {

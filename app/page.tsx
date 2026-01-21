@@ -1,3 +1,4 @@
+// app/page.tsx
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
@@ -12,6 +13,7 @@ import CVEditor from "./(components)/CVEditor";
 import DocSearchPanel from "./(components)/DocSearchPanel";
 import LanguagePicker from "./(components)/LanguagePicker";
 import MaskingToggles from "./(components)/MaskingToggles";
+import UploadPanel from "./(components)/UploadPanel";
 
 function Spinner({ size = 16 }: { size?: number }) {
   return (
@@ -44,11 +46,22 @@ function Spinner({ size = 16 }: { size?: number }) {
 /* ─────────────────────────────────────────────────────────────
    Types & constants
    ───────────────────────────────────────────────────────────── */
-type TemplateId = "pdf-kyndryl" | "pdf-europass" | "docx-ep" | "pptx-kyndryl-sm";
+type TemplateId =
+  | "pdf-kyndryl"
+  | "pdf-europass"
+  | "pdf-europass2"
+  | "docx-ep"
+  | "pptx-kyndryl-sm";
+
 const DEFAULT_TEMPLATE: TemplateId = "pdf-kyndryl";
-const TEMPLATE_META: Record<TemplateId, { kind: "pdf" | "docx" | "pptx"; label: string }> = {
+
+const TEMPLATE_META: Record<
+  TemplateId,
+  { kind: "pdf" | "docx" | "pptx"; label: string }
+> = {
   "pdf-kyndryl": { kind: "pdf", label: "Kyndryl PDF" },
   "pdf-europass": { kind: "pdf", label: "Europass PDF" },
+  "pdf-europass2": { kind: "pdf", label: "Europass 2 PDF" },
   "docx-ep": { kind: "docx", label: "European Parliament DOCX" },
   "pptx-kyndryl-sm": { kind: "pptx", label: "Kyndryl SM PPTX" },
 };
@@ -78,6 +91,8 @@ export default function Page() {
 
   const [busy, setBusy] = useState<boolean>(false);
   const urlRef = useRef<string | null>(null);
+  const [searchRefresh, setSearchRefresh] = useState<number>(0);
+  const [searchAutoQuery, setSearchAutoQuery] = useState<string>("");
 
   // Cleanup preview object URL
   useEffect(() => {
@@ -100,7 +115,8 @@ export default function Page() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || json?.ok === false) {
-        const msg = json?.error || `Failed to convert to CVJson (HTTP ${res.status})`;
+        const msg =
+          json?.error || `Failed to convert to CVJson (HTTP ${res.status})`;
         throw new Error(msg);
       }
       const maybe = json.cv ?? json.data ?? json.result ?? json;
@@ -121,6 +137,24 @@ export default function Page() {
     }
   }
 
+  // Use this CV (from upload)
+  async function handleUploadCv(raw: any) {
+    try {
+      setBusy(true);
+      const maybe = raw?.cv ?? raw?.data ?? raw?.result ?? raw;
+      const out = migrateCvShape(maybe);
+      if (!out?.candidate?.name)
+        throw new Error("Server returned no CV data (missing candidate.name).");
+      setCv(out as CVJson);
+      setPreviewUrl(null);
+      setPreviewCt(null);
+    } catch (e: any) {
+      console.error(e);
+      alert(`Upload failed: ${e?.message || e}`);
+    } finally {
+      setBusy(false);
+    }
+  }
   // Preview
   async function doPreview() {
     if (!cv) return alert("Load or edit a CV first.");
@@ -244,6 +278,9 @@ export default function Page() {
       document.body.appendChild(a);
       a.click();
       a.remove();
+      const candidateName = cv?.candidate?.name || "";
+      setSearchAutoQuery(candidateName);
+      setSearchRefresh((v) => v + 1);
     } catch (e: any) {
       console.error(e);
       alert(e?.message || String(e));
@@ -295,7 +332,14 @@ export default function Page() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {/* Left: Search + Editor */}
         <div className="flex min-h-[70vh] flex-col gap-4">
-          <DocSearchPanel {...({ onSelect: handleUseThisCV } as any)} />
+          <UploadPanel onLoaded={handleUploadCv} />
+          <DocSearchPanel
+            {...({
+              onSelect: handleUseThisCV,
+              refreshKey: searchRefresh,
+              autoQuery: searchAutoQuery,
+            } as any)}
+          />
           <div className="rounded-xl border p-3">
             <div className="mb-2 text-sm font-medium">
               Editor{" "}

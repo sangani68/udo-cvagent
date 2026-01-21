@@ -1,7 +1,7 @@
 // lib/azureSearch.ts
 import crypto from 'crypto';
 
-const APIv = '2023-11-01';
+const APIv = '2024-07-01';
 
 function must(name: string) {
   const v = process.env[name];
@@ -83,9 +83,11 @@ export async function createOrUpdateHybridIndex() {
 
 export async function createOrUpdateBlobIndexer() {
   const { blobIndex } = cfg();
-  const account = must('AZURE_STORAGE_ACCOUNT');
-  const container = must('AZURE_STORAGE_CONTAINER');
-  const conn = must('AZURE_STORAGE_CONN_STRING');
+  const container = process.env.AZURE_STORAGE_CONTAINER || 'cvkb';
+  const conn =
+    process.env.AZURE_STORAGE_CONNECTION_STRING ||
+    process.env.AZURE_STORAGE_CONN_STRING;
+  if (!conn) throw new Error('AZURE_STORAGE_CONNECTION_STRING missing');
 
   // 1) datasource
   await asHttp(`/datasources/${blobIndex}-ds`, 'PUT', {
@@ -107,17 +109,27 @@ export async function createOrUpdateBlobIndexer() {
     ],
   });
 
-  // 3) indexer (remove failOnUnsupportedContent — caused your 400)
+  // 3) indexer (tolerant settings + safe key mapping)
   return asHttp(`/indexers/${blobIndex}-indexer`, 'PUT', {
     name: `${blobIndex}-indexer`,
     dataSourceName: `${blobIndex}-ds`,
     targetIndexName: blobIndex,
     schedule: { interval: 'PT30M' }, // every 30 mins
+    fieldMappings: [
+      // Ensure we always have a valid key for the blob index
+      { sourceFieldName: 'metadata_storage_path', targetFieldName: 'id', mappingFunction: { name: 'base64Encode' } },
+    ],
     parameters: {
+      maxFailedItems: -1,
+      maxFailedItemsPerBatch: -1,
       // keep defaults; do not set unsupported properties
       configuration: {
         dataToExtract: 'contentAndMetadata',
         parsingMode: 'default',
+        failOnUnprocessableDocument: false,
+        failOnUnsupportedContentType: false,
+        indexStorageMetadataOnlyForOversizedDocuments: true,
+        indexedFileNameExtensions: ".pdf,.doc,.docx,.ppt,.pptx,.txt,.md",
       },
     },
   });
@@ -137,6 +149,28 @@ export async function queryBlobIndex(sinceIso?: string, top = 1000) {
     orderby: 'metadata_storage_last_modified desc',
     top,
     filter,
+  });
+}
+
+export async function queryBlobDocByPath(path: string) {
+  const { blobIndex } = cfg();
+  const safe = String(path || "").replace(/'/g, "''");
+  return asHttp(`/indexes/${blobIndex}/docs/search`, 'POST', {
+    search: '*',
+    select: 'id,metadata_storage_name,metadata_storage_path,metadata_storage_last_modified,content',
+    top: 1,
+    filter: `metadata_storage_path eq '${safe}'`,
+  });
+}
+
+export async function queryBlobDocByName(name: string) {
+  const { blobIndex } = cfg();
+  const safe = String(name || "").replace(/'/g, "''");
+  return asHttp(`/indexes/${blobIndex}/docs/search`, 'POST', {
+    search: '*',
+    select: 'id,metadata_storage_name,metadata_storage_path,metadata_storage_last_modified,content',
+    top: 1,
+    filter: `metadata_storage_name eq '${safe}'`,
   });
 }
 
