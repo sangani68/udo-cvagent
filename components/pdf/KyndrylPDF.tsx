@@ -75,7 +75,9 @@ function normalizeLines(bullets: any[]): string[] {
 }
 
 export default function KyndrylPDF({ data }: { data: CvData }) {
-  const c = (data?.candidate ?? {}) as CvData["candidate"];
+  const c = (data?.candidate ?? {}) as CvData["candidate"] & {
+    website?: string;
+  };
   const contacts = [c.location, c.email, c.phone, c.website, c.linkedin]
     .filter(Boolean)
     .join(" · ");

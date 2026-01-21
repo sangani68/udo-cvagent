@@ -636,8 +636,9 @@ export default function Europass2PDF({ data }: { data: CvData }) {
                     const nm = s(l.language || l.name || "");
                     const levels = getLangSkillLevels(l);
                     const alt = idx % 2 === 1;
-                    const rowBase = [styles.langCell];
-                    if (alt) rowBase.push(styles.langCellAlt);
+                    const rowBase = alt
+                      ? [styles.langCell, styles.langCellAlt]
+                      : [styles.langCell];
 
                     return (
                       <View key={idx} style={styles.langRow}>
