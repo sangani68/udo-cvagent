@@ -98,7 +98,7 @@ export default function DocSearchPanel({ onSelect, refreshKey, autoQuery }: Prop
           onKeyDown={(e) => { if (e.key === "Enter") doSearch(); }}
         />
         <button
-          onClick={doSearch}
+          onClick={() => doSearch()}
           disabled={busy}
           className="rounded bg-black px-3 py-2 text-sm text-white disabled:opacity-60"
         >
