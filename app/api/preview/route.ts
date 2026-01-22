@@ -53,6 +53,7 @@ export async function POST(req: NextRequest) {
       template: body?.template,
       locale: body?.locale ?? "en",
       maskPersonal: !!body?.maskPersonal,
+      maskPolicy: body?.maskPolicy,
     });
 
     if (template === "docx-ep" || template === "pptx-kyndryl-sm") {

@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import type { CVJson } from "@/lib/cvSchema";
+import type { MaskPolicy } from "@/lib/mask";
 import { buildViewData } from "@/lib/preview-pipeline";
 import { buildHtmlPreview } from "@/lib/htmlPreview";
 import { uploadToCvkb } from "@/lib/azure";
@@ -15,6 +16,7 @@ type Payload = {
   templateId?: string;
   locale?: string;
   maskPersonal?: boolean;
+  maskPolicy?: MaskPolicy;
 };
 
 export async function POST(req: NextRequest) {
@@ -38,6 +40,7 @@ export async function POST(req: NextRequest) {
       template: templateId,
       templateId,
       locale: targetLocale,
+      maskPolicy: body?.maskPolicy,
     };
 
     const { data } = await buildViewData(viewBody);

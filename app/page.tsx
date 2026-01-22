@@ -13,6 +13,7 @@ import CVEditor from "./(components)/CVEditor";
 import DocSearchPanel from "./(components)/DocSearchPanel";
 import LanguagePicker from "./(components)/LanguagePicker";
 import MaskingToggles from "./(components)/MaskingToggles";
+import type { MaskPolicy } from "../lib/mask";
 import UploadPanel from "./(components)/UploadPanel";
 
 function Spinner({ size = 16 }: { size?: number }) {
@@ -84,7 +85,11 @@ export default function Page() {
   const [cv, setCv] = useState<CVJson | null>(null);
   const [template, setTemplate] = useState<TemplateId>(DEFAULT_TEMPLATE);
   const [locale, setLocale] = useState<string>("en");
-  const [maskPersonal, setMaskPersonal] = useState<boolean>(false);
+  const [maskPolicy, setMaskPolicy] = useState<MaskPolicy>({
+    email: false,
+    phone: false,
+    location: false,
+  });
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewCt, setPreviewCt] = useState<"pdf" | "html" | null>(null);
@@ -170,7 +175,7 @@ export default function Page() {
           template,
           templateId: template,
           locale,
-          maskPersonal,
+          maskPolicy,
         }),
       });
 
@@ -252,7 +257,7 @@ export default function Page() {
           template,
           templateId: template,
           locale,
-          maskPersonal,
+          maskPolicy,
         }),
       });
 
@@ -310,7 +315,7 @@ export default function Page() {
             {...({ value: locale, onChange: setLocale } as any)}
           />
           <MaskingToggles
-            {...({ value: maskPersonal, onChange: setMaskPersonal } as any)}
+            {...({ value: maskPolicy, onChange: setMaskPolicy } as any)}
           />
           <button
             onClick={doPreview}

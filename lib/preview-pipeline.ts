@@ -2,24 +2,37 @@
 import type { CVJson } from "./cvSchema";
 import { migrateCvShape } from "./cvSchema";
 import { toPreviewModel, type CvData } from "./cv-view";
+import type { MaskPolicy } from "./mask";
 
 /* ─────────────────────────────
    Mask PII (keep your policy)
    ───────────────────────────── */
-export function maskCv(cv: CVJson): CVJson {
+const EMPTY_POLICY: MaskPolicy = { email: false, phone: false, location: false };
+
+export function maskCv(cv: CVJson, policy: MaskPolicy = EMPTY_POLICY): CVJson {
   const out: any = JSON.parse(JSON.stringify(cv || {}));
   const c = out.candidate || (out.candidate = {});
 
-  c.fullName = "Candidate";
-  c.name = "Candidate";
-  c.email = "";
-  c.phone = "";
-  c.linkedin = "";
-  c.location = "";
+  if (policy.email) c.email = "";
+  if (policy.phone) c.phone = "";
+  if (policy.location) c.location = "";
   if (c.contacts) {
-    c.contacts.email = "";
-    c.contacts.phone = "";
-    c.contacts.linkedin = "";
+    if (policy.email) c.contacts.email = "";
+    if (policy.phone) c.contacts.phone = "";
+    if (policy.location) c.contacts.location = "";
+  }
+  if (policy.location) {
+    if (typeof c.address === "string") c.address = "";
+    if (c.address && typeof c.address === "object") {
+      c.address.line1 = "";
+      c.address.line2 = "";
+      c.address.city = "";
+      c.address.region = "";
+      c.address.postalCode = "";
+      c.address.country = "";
+    }
+    c.city = "";
+    c.country = "";
   }
   return out;
 }
@@ -174,22 +187,29 @@ export async function buildViewData(opts: {
   templateId?: string;
   locale?: string;
   maskPersonal?: boolean;
+  maskPolicy?: MaskPolicy;
 }): Promise<{
   data: CvData;
   cv: CVJson;
   template: string;
   locale: string;
   mask: boolean;
+  maskPolicy: MaskPolicy;
 }> {
   const template = (opts.templateId || opts.template || "pdf-kyndryl") as string;
   const locale = (opts.locale || "en").toLowerCase();
-  const mask = !!opts.maskPersonal;
+  const maskPolicy =
+    opts.maskPolicy ??
+    (opts.maskPersonal
+      ? { email: true, phone: true, location: true }
+      : { email: false, phone: false, location: false });
+  const mask = !!(maskPolicy.email || maskPolicy.phone || maskPolicy.location);
 
   // 1) canonicalize
   let cv = migrateCvShape((opts.data ?? opts.cv ?? opts) as any);
 
   // 2) mask first (your requirement)
-  if (mask) cv = maskCv(cv);
+  if (mask) cv = maskCv(cv, maskPolicy);
 
   // 3) normalize to tolerant view model
   const base = toPreviewModel(cv);
@@ -217,7 +237,7 @@ export async function buildViewData(opts: {
       : [],
   } as any;
 
-  return { data, cv, template, locale, mask };
+  return { data, cv, template, locale, mask, maskPolicy };
 }
 
 /* ─────────────────────────────

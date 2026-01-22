@@ -22,12 +22,14 @@ import { buildViewData } from "@/lib/preview-pipeline";
 import { toEpFormData } from "@/lib/ep-docx";
 import { uploadToCvkb } from "@/lib/azure";
 import { buildExportFilename } from "@/lib/export-utils";
+import type { MaskPolicy } from "@/lib/mask";
 
 type Body = {
   data?: any;
   cv?: any;
   locale?: string;
   maskPersonal?: boolean;
+  maskPolicy?: MaskPolicy;
   template?: string; // "docx-ep"
   templateId?: string; // "docx-ep"
 };
@@ -278,6 +280,7 @@ export async function POST(req: NextRequest) {
       template: templateId,
       templateId,
       locale: targetLocale,
+      maskPolicy: body?.maskPolicy,
     };
 
     const { data, locale } = await buildViewData(viewBody);

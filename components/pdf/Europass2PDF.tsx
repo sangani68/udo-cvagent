@@ -363,14 +363,26 @@ export default function Europass2PDF({ data }: { data: CvData }) {
 
   // Language-related
   const languages: any[] = Array.isArray(c.languages) ? c.languages : [];
+  const addUnique = (arr: string[], v: string) => {
+    const key = s(v).trim();
+    if (!key) return;
+    const exists = arr.some((x) => x.toUpperCase().trim() === key.toUpperCase().trim());
+    if (!exists) arr.push(key);
+  };
   const motherTongues: string[] = Array.isArray(c.motherTongues)
-    ? c.motherTongues.map(s)
+    ? c.motherTongues.map(s).filter(Boolean)
     : [];
+  const isNative = (l: any) => {
+    const lvl = s(l.levelText || l.level || l.cefr || l.proficiency || "").toLowerCase();
+    return /native|mother\s*tongue/.test(lvl);
+  };
+  languages.forEach((l) => {
+    if (isNative(l)) addUnique(motherTongues, s(l.language || l.name || ""));
+  });
+  const motherTongueSet = motherTongues.map((mt) => mt.toUpperCase().trim());
   const otherLanguages = languages.filter((l) => {
     const nm = s(l.language || l.name || "").toUpperCase().trim();
-    return !motherTongues
-      .map((mt) => mt.toUpperCase().trim())
-      .includes(nm);
+    return nm && !motherTongueSet.includes(nm) && !isNative(l);
   });
 
   const skills: string[] = Array.isArray(c.skills)
@@ -430,46 +442,13 @@ export default function Europass2PDF({ data }: { data: CvData }) {
           ) : null}
         </View>
 
-        {/* ───────── WORK EXPERIENCE ───────── */}
-        {exps.length ? (
+        {/* ───────── ABOUT ME ───────── */}
+        {s(c.summary || c.about || "").trim() ? (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Work Experience</Text>
-            {exps.map((e: any, i: number) => {
-              const title = s(e.title || e.role || "");
-              const company = s(e.company || e.employer || "");
-              const start = s(e.start || "");
-              const end = s(e.end || "Present");
-              const location = s(e.location || "");
-              const headerParts = [
-                title || "Role",
-                company,
-                start && end ? `${start} – ${end}` : start || end,
-                location,
-              ].filter(Boolean);
-
-              const lines = normalizeLines(e.bullets || []);
-              if (!lines.length && (e.summary || e.description)) {
-                lines.push(s(e.summary || e.description));
-              }
-
-              return (
-                <View key={i} style={styles.block} wrap>
-                  <Text
-                    style={[
-                      styles.breakable,
-                      { fontWeight: "bold", color: TEXT_PRIMARY },
-                    ]}
-                  >
-                    {headerParts.join(" – ")}
-                  </Text>
-                  {lines.map((t, j) => (
-                    <Text key={j} style={[styles.bullet, styles.breakable]}>
-                      • {t}
-                    </Text>
-                  ))}
-                </View>
-              );
-            })}
+            <Text style={styles.sectionTitle}>About Me</Text>
+            <View style={styles.block}>
+              <Text style={styles.breakable}>{s(c.summary || c.about)}</Text>
+            </View>
           </View>
         ) : null}
 
@@ -728,6 +707,49 @@ export default function Europass2PDF({ data }: { data: CvData }) {
                 {d}
               </Text>
             ))}
+          </View>
+        ) : null}
+
+        {/* ───────── WORK EXPERIENCE ───────── */}
+        {exps.length ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Work Experience</Text>
+            {exps.map((e: any, i: number) => {
+              const title = s(e.title || e.role || "");
+              const company = s(e.company || e.employer || "");
+              const start = s(e.start || "");
+              const end = s(e.end || "Present");
+              const location = s(e.location || "");
+              const headerParts = [
+                title || "Role",
+                company,
+                start && end ? `${start} – ${end}` : start || end,
+                location,
+              ].filter(Boolean);
+
+              const lines = normalizeLines(e.bullets || []);
+              if (!lines.length && (e.summary || e.description)) {
+                lines.push(s(e.summary || e.description));
+              }
+
+              return (
+                <View key={i} style={styles.block} wrap>
+                  <Text
+                    style={[
+                      styles.breakable,
+                      { fontWeight: "bold", color: TEXT_PRIMARY },
+                    ]}
+                  >
+                    {headerParts.join(" – ")}
+                  </Text>
+                  {lines.map((t, j) => (
+                    <Text key={j} style={[styles.bullet, styles.breakable]}>
+                      • {t}
+                    </Text>
+                  ))}
+                </View>
+              );
+            })}
           </View>
         ) : null}
       </Page>
