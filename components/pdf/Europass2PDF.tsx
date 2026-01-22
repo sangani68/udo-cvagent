@@ -113,6 +113,9 @@ const styles = StyleSheet.create({
     borderBottomColor: BORDER,
     paddingBottom: 2,
   },
+  sectionTitleTight: {
+    marginBottom: 4,
+  },
   block: {
     marginBottom: 8,
   },
@@ -386,7 +389,16 @@ export default function Europass2PDF({ data }: { data: CvData }) {
   });
 
   const skills: string[] = Array.isArray(c.skills)
-    ? c.skills.map(s)
+    ? c.skills
+        .map(s)
+        .map((v: string) => v.replace(/\s*\n+\s*/g, " ").trim())
+        .filter(Boolean)
+    : [];
+
+  const certifications: any[] = Array.isArray(c.certifications)
+    ? c.certifications
+    : Array.isArray(c.certificates)
+    ? c.certificates
     : [];
 
   const driving: string[] = [];
@@ -452,10 +464,10 @@ export default function Europass2PDF({ data }: { data: CvData }) {
           </View>
         ) : null}
 
-        {/* ───────── EDUCATION AND TRAINING ───────── */}
+        {/* ───────── EDUCATION ───────── */}
         {edus.length ? (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Education and Training</Text>
+            <Text style={styles.sectionTitle}>Education</Text>
             {edus.map((ed: any, i: number) => {
               const degree = s(ed.degree || ed.title || "");
               const school = s(ed.school || ed.institution || "");
@@ -493,6 +505,30 @@ export default function Europass2PDF({ data }: { data: CvData }) {
                     </Text>
                   ) : null}
                 </View>
+              );
+            })}
+          </View>
+        ) : null}
+
+        {/* ───────── CERTIFICATIONS / TRAININGS ───────── */}
+        {certifications.length ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Certifications/Trainings</Text>
+            {certifications.map((cert: any, i: number) => {
+              const name = s(cert.name || cert.title || "");
+              const issuer = s(cert.issuer || cert.org || cert.company || "");
+              const start = s(cert.start || "");
+              const end = s(cert.end || cert.validUntil || "");
+              const date =
+                s(cert.date || "") ||
+                (start && end ? `${start} – ${end}` : start || end);
+              const line = [name || "Certification", issuer, date]
+                .filter(Boolean)
+                .join(" — ");
+              return (
+                <Text key={i} style={[styles.breakable, { marginBottom: 2 }]}>
+                  {line}
+                </Text>
               );
             })}
           </View>
@@ -683,14 +719,7 @@ export default function Europass2PDF({ data }: { data: CvData }) {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Skills</Text>
             <View style={styles.block}>
-              {skills.map((skill, i) => (
-                <Text
-                  key={i}
-                  style={[styles.breakable, { marginBottom: 2 }]}
-                >
-                  {skill}
-                </Text>
-              ))}
+              <Text style={styles.breakable}>{skills.join(", ")}</Text>
             </View>
           </View>
         ) : null}
@@ -713,7 +742,9 @@ export default function Europass2PDF({ data }: { data: CvData }) {
         {/* ───────── WORK EXPERIENCE ───────── */}
         {exps.length ? (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Work Experience</Text>
+            <Text style={[styles.sectionTitle, styles.sectionTitleTight]}>
+              Work Experience
+            </Text>
             {exps.map((e: any, i: number) => {
               const title = s(e.title || e.role || "");
               const company = s(e.company || e.employer || "");

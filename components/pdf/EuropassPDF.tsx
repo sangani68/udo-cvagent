@@ -230,6 +230,7 @@ export default function EuropassPDF({ data }: { data: CvData }) {
                 </Text>
               </View>
             ) : null}
+
           </View>
 
           {/* RIGHT COLUMN */}
@@ -287,6 +288,30 @@ export default function EuropassPDF({ data }: { data: CvData }) {
                     ) : null}
                   </View>
                 ))}
+              </View>
+            ) : null}
+
+            {Array.isArray(c.certifications || c.certificates) &&
+            (c.certifications || c.certificates).length ? (
+              <View style={styles.section}>
+                <Text style={styles.h1}>Certifications/Trainings</Text>
+                {(c.certifications || c.certificates).map((cert: any, i: number) => {
+                  const name = s(cert.name || cert.title || "");
+                  const issuer = s(cert.issuer || cert.org || cert.company || "");
+                  const start = s(cert.start || "");
+                  const end = s(cert.end || cert.validUntil || "");
+                  const date =
+                    s(cert.date || "") ||
+                    (start && end ? `${start} – ${end}` : start || end);
+                  const line = [name || "Certification", issuer, date]
+                    .filter(Boolean)
+                    .join(" · ");
+                  return (
+                    <Text key={i} style={styles.breakable}>
+                      {line}
+                    </Text>
+                  );
+                })}
               </View>
             ) : null}
           </View>

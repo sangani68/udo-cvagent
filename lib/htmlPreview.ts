@@ -200,6 +200,7 @@ function defaultHtml(raw: CvData, accent: string) {
           .join("")}</ul></section>`
       : "";
 
+
   const experience =
     Array.isArray((data as any).experience) && (data as any).experience.length
       ? `<section><h2>Experience</h2>
@@ -245,6 +246,28 @@ function defaultHtml(raw: CvData, accent: string) {
         </section>`
       : "";
 
+  const certList = Array.isArray(c.certifications)
+    ? c.certifications
+    : Array.isArray(c.certificates)
+    ? c.certificates
+    : [];
+
+  const certifications =
+    certList.length
+      ? `<section><h2>Certifications/Trainings</h2><ul class="bullets">${certList
+          .map((cert: any) => {
+            const name = esc(cert.name || cert.title || "Certification");
+            const issuer = esc(cert.issuer || cert.org || cert.company || "");
+            const date = esc(
+              cert.date ||
+                ([cert.start, cert.end].filter(Boolean).join(" – ") || "")
+            );
+            const parts = [name, issuer].filter(Boolean).join(" — ");
+            return `<li>${parts}${date ? ` (${date})` : ""}</li>`;
+          })
+          .join("")}</ul></section>`
+      : "";
+
   // Languages last
   const languages =
     Array.isArray(c.languages) && c.languages.length
@@ -282,7 +305,7 @@ function defaultHtml(raw: CvData, accent: string) {
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>${css}</style>
   <body>
-    ${header}${summary}${skills}${experience}${education}${languages}
+    ${header}${summary}${skills}${experience}${education}${certifications}${languages}
   </body>`;
 }
 

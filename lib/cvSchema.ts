@@ -29,7 +29,14 @@ export type ProjectItem = {
   bullets?: Bullet[];
 };
 
-export type SimpleItem = { name?: string; issuer?: string; date?: string; url?: string };
+export type SimpleItem = {
+  name?: string;
+  issuer?: string;
+  start?: string;
+  end?: string;
+  date?: string;
+  url?: string;
+};
 
 export type CVJson = {
   meta?: { locale?: string; source?: string };
@@ -165,7 +172,12 @@ export function migrateCvShape(input: any): CVJson {
     experience,
     education,
     projects,
-    certificates: asArray(input?.certificates),
+    certificates: asArray(
+      input?.certificates ||
+        input?.candidate?.certificates ||
+        input?.candidate?.certifications ||
+        input?.candidate?.certs
+    ),
     awards: asArray(input?.awards),
     publications: asArray(input?.publications),
   };

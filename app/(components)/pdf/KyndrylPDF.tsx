@@ -79,25 +79,28 @@ export default function KyndrylPDF({ data }: { data: CvData }) {
           </View>
         )}
 
-        {Array.isArray(c.certifications) && c.certifications.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.h2}>Certifications</Text>
-            {c.certifications.map((cert:any, i:number) => (
-              <Text key={i}>
-                {cert.name}
-                {cert.org ? ` — ${cert.org}` : ""}
-                {cert.date ? ` (${cert.date})` : ""}
-              </Text>
-            ))}
-          </View>
-        )}
-
         {Array.isArray(c.education) && c.education.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.h2}>Education</Text>
             {c.education.map((e:any, i:number) => (
               <Text key={i}>
                 {e.degree} — {e.institution} {e.endDate ? `(${e.endDate})` : ""}
+              </Text>
+            ))}
+          </View>
+        )}
+
+        {Array.isArray(c.certifications || (c as any).certificates) &&
+        (c.certifications || (c as any).certificates).length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.h2}>Certifications/Trainings</Text>
+            {(c.certifications || (c as any).certificates).map((cert:any, i:number) => (
+              <Text key={i}>
+                {cert.name}
+                {cert.issuer || cert.org ? ` — ${cert.issuer || cert.org}` : ""}
+                {cert.start || cert.end || cert.date
+                  ? ` (${[cert.start, cert.end].filter(Boolean).join(" – ") || cert.date})`
+                  : ""}
               </Text>
             ))}
           </View>

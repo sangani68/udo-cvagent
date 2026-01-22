@@ -358,6 +358,59 @@ export function CVEditor({ value, onChange }: Props) {
           ) : null}
         </div>
       </div>
+
+      {/* Certifications (compact) */}
+      <div>
+        <div className="mb-2 text-sm font-medium">Certifications</div>
+        {(form.certificates || []).map((cert, i) => (
+          <div key={i} className="mb-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+            <input
+              className="rounded border px-2 py-1 text-sm"
+              placeholder="Certification name"
+              value={cert.name || ""}
+              onChange={(ev) => update((d) => ((d.certificates = d.certificates || [])[i].name = ev.target.value))}
+            />
+            <input
+              className="rounded border px-2 py-1 text-sm"
+              placeholder="Institute / Company"
+              value={cert.issuer || ""}
+              onChange={(ev) => update((d) => ((d.certificates = d.certificates || [])[i].issuer = ev.target.value))}
+            />
+            <input
+              className="rounded border px-2 py-1 text-sm"
+              placeholder="Start date"
+              value={cert.start || ""}
+              onChange={(ev) => update((d) => ((d.certificates = d.certificates || [])[i].start = ev.target.value))}
+            />
+            <input
+              className="rounded border px-2 py-1 text-sm"
+              placeholder="Valid until"
+              value={cert.end || ""}
+              onChange={(ev) => update((d) => ((d.certificates = d.certificates || [])[i].end = ev.target.value))}
+            />
+          </div>
+        ))}
+        <div className="flex gap-2">
+          <button
+            className="rounded border px-2 py-1 text-xs hover:bg-gray-50"
+            onClick={() =>
+              update((d) =>
+                (d.certificates = [...(d.certificates || []), { name: "", issuer: "", start: "", end: "" }])
+              )
+            }
+          >
+            + Add certification
+          </button>
+          {form.certificates?.length ? (
+            <button
+              className="rounded border px-2 py-1 text-xs hover:bg-gray-50"
+              onClick={() => update((d) => (d.certificates = (d.certificates || []).slice(0, -1)))}
+            >
+              − Remove last
+            </button>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }

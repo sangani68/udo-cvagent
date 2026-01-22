@@ -38,6 +38,15 @@ export type CvData = {
       location?: string;
     }>;
 
+    certifications: Array<{
+      name?: string;
+      issuer?: string;
+      start?: string;
+      end?: string;
+      date?: string;
+      org?: string;
+    }>;
+
     languages: Array<{ name?: string; level?: string; levelText?: string }>;
   };
   cv: CVJson;
@@ -241,6 +250,34 @@ export function toPreviewModel(cv: CVJson): CvData {
     }))
     .filter((l) => l.name);
 
+  // Certifications
+  let certSources = takeArray(c0, ["certifications", "certificates", "certs"]);
+  if (!certSources.length) {
+    certSources = takeArray(src, ["certifications", "certificates", "certs"]);
+  }
+  if (!certSources.length) {
+    certSources = takeArray((src as any)?.candidate, ["certifications", "certificates", "certs"]);
+  }
+  const certifications = (certSources as any[])
+    .map((item: any) => {
+      const name = String(item?.name ?? item?.title ?? item?.certification ?? "").trim();
+      const issuer = String(
+        item?.issuer ?? item?.company ?? item?.institute ?? item?.organization ?? ""
+      ).trim();
+      const start = String(
+        item?.start ?? item?.startDate ?? item?.from ?? item?.issued ?? item?.issueDate ?? ""
+      ).trim();
+      const end = String(
+        item?.end ?? item?.validUntil ?? item?.expiry ?? item?.expirationDate ?? item?.to ?? ""
+      ).trim();
+      const date =
+        String(item?.date ?? "").trim() ||
+        (start && end ? `${start} – ${end}` : start || end);
+      const org = issuer;
+      return { name, issuer, start, end, date, org };
+    })
+    .filter((c: any) => c.name || c.issuer || c.date || c.start || c.end);
+
   const links = Array.isArray(c0.links) ? [...c0.links] : [];
   if (website && !links.some((l: any) => (l?.url || "") === website)) {
     links.push({ label: "Website", url: website });
@@ -263,6 +300,7 @@ export function toPreviewModel(cv: CVJson): CvData {
     skills,
     experiences,
     education,
+    certifications,
     languages,
     contacts: { email, phone, linkedin, website },
     links,

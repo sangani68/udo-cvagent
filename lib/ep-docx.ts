@@ -209,6 +209,24 @@ export function toEpFormData(data: CvData) {
     .join("; ");
 
   const trainings = normalizeTrainings(c?.trainings);
+  const certs = Array.isArray(c?.certifications) ? c.certifications : [];
+  const certTrainings = certs.map((x: AnyRec) => {
+    const title = firstNonEmpty(x?.name, x?.title, x?.certification);
+    const provider = firstNonEmpty(x?.issuer, x?.org, x?.company, x?.institute);
+    const date = firstNonEmpty(
+      x?.date,
+      x?.validUntil,
+      x?.expiry,
+      [x?.start, x?.end].filter(Boolean).join(" – ")
+    );
+    return {
+      title: S(title),
+      provider: S(provider),
+      certificate: S(x?.certificate || ""),
+      date: S(date),
+    };
+  }).filter((t: AnyRec) => t.title || t.provider || t.date);
+  trainings.push(...certTrainings);
   const software = normalizeSoftware(c?.software ?? c?.tools);
 
   const work = normalizeWork(

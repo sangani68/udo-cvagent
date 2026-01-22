@@ -157,6 +157,22 @@ export default function KyndrylPDF({ data }: { data: CvData }) {
           </View>
         ) : null}
 
+        {Array.isArray(c.certifications || (c as any).certificates) &&
+        (c.certifications || (c as any).certificates).length ? (
+          <View style={styles.section}>
+            <Text style={styles.h1}>Certifications/Trainings</Text>
+            {(c.certifications || (c as any).certificates).map((cert: any, i: number) => (
+              <Text key={i} style={styles.breakable}>
+                {s(cert.name || cert.title || "Certification")}
+                {cert.issuer || cert.org ? ` — ${s(cert.issuer || cert.org)}` : ""}
+                {cert.start || cert.end || cert.date
+                  ? ` (${[cert.start, cert.end].filter(Boolean).join(" – ") || cert.date})`
+                  : ""}
+              </Text>
+            ))}
+          </View>
+        ) : null}
+
         {Array.isArray(c.skills) && c.skills.length ? (
           <View style={styles.section}>
             <Text style={styles.h1}>Skills</Text>
