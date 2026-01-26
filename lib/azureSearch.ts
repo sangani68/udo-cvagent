@@ -152,6 +152,17 @@ export async function queryBlobIndex(sinceIso?: string, top = 1000) {
   });
 }
 
+export async function searchBlobIndex(query: string, top = 20) {
+  const { blobIndex } = cfg();
+  const q = (query || "").trim() || "*";
+  return asHttp(`/indexes/${blobIndex}/docs/search`, "POST", {
+    search: q,
+    select: "id,metadata_storage_name,metadata_storage_path,metadata_storage_last_modified,content",
+    orderby: "metadata_storage_last_modified desc",
+    top,
+  });
+}
+
 export async function queryBlobDocByPath(path: string) {
   const { blobIndex } = cfg();
   const safe = String(path || "").replace(/'/g, "''");

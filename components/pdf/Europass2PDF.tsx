@@ -220,6 +220,48 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     color: TEXT_MUTED,
   },
+
+  // ───────────────── CERTIFICATIONS TABLE ─────────────────
+  certTable: {
+    width: "100%",
+    borderWidth: 0.5,
+    borderColor: BORDER,
+    marginTop: 4,
+  },
+  certRow: {
+    flexDirection: "row",
+  },
+  certHeaderCell: {
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+    backgroundColor: EURO_BLUE,
+    borderRightWidth: 0.5,
+    borderRightColor: BORDER,
+    justifyContent: "center",
+  },
+  certHeaderText: {
+    fontSize: 9,
+    color: "#FFFFFF",
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  certCell: {
+    paddingVertical: 3,
+    paddingHorizontal: 4,
+    borderTopWidth: 0.5,
+    borderTopColor: BORDER,
+    borderRightWidth: 0.5,
+    borderRightColor: BORDER,
+    justifyContent: "center",
+  },
+  certCellText: {
+    fontSize: 9,
+    color: TEXT_PRIMARY,
+  },
+  certColName: { width: "38%" },
+  certColIssuer: { width: "32%" },
+  certColStart: { width: "15%" },
+  certColEnd: { width: "15%" },
 });
 
 // Helpers
@@ -400,6 +442,7 @@ export default function Europass2PDF({ data }: { data: CvData }) {
     : Array.isArray(c.certificates)
     ? c.certificates
     : [];
+  const certRows = certifications.length ? certifications : [{}];
 
   const driving: string[] = [];
   if (Array.isArray(c.drivingLicences)) driving.push(...c.drivingLicences.map(s));
@@ -471,6 +514,8 @@ export default function Europass2PDF({ data }: { data: CvData }) {
             {edus.map((ed: any, i: number) => {
               const degree = s(ed.degree || ed.title || "");
               const school = s(ed.school || ed.institution || "");
+              const fieldOfStudy = s(ed.fieldOfStudy || ed.field || ed.studyField || ed.major || ed.specialization || ed.area || "");
+              const eqfLevel = s(ed.eqfLevel || ed.eqf || ed.levelEqf || "");
               const start = s(ed.start || "");
               const end = s(ed.end || "");
               const location = s(ed.location || "");
@@ -499,6 +544,16 @@ export default function Europass2PDF({ data }: { data: CvData }) {
                       Website {website}
                     </Text>
                   ) : null}
+                  {fieldOfStudy ? (
+                    <Text style={[styles.muted, styles.breakable]}>
+                      Field(s) of study: {fieldOfStudy}
+                    </Text>
+                  ) : null}
+                  {eqfLevel ? (
+                    <Text style={[styles.muted, styles.breakable]}>
+                      Level in EQF: {eqfLevel}
+                    </Text>
+                  ) : null}
                   {details ? (
                     <Text style={[styles.breakable, { marginTop: 2 }]}>
                       {details}
@@ -511,28 +566,52 @@ export default function Europass2PDF({ data }: { data: CvData }) {
         ) : null}
 
         {/* ───────── CERTIFICATIONS / TRAININGS ───────── */}
-        {certifications.length ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Certifications/Trainings</Text>
-            {certifications.map((cert: any, i: number) => {
-              const name = s(cert.name || cert.title || "");
-              const issuer = s(cert.issuer || cert.org || cert.company || "");
-              const start = s(cert.start || "");
-              const end = s(cert.end || cert.validUntil || "");
-              const date =
-                s(cert.date || "") ||
-                (start && end ? `${start} – ${end}` : start || end);
-              const line = [name || "Certification", issuer, date]
-                .filter(Boolean)
-                .join(" — ");
-              return (
-                <Text key={i} style={[styles.breakable, { marginBottom: 2 }]}>
-                  {line}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Certifications/Trainings</Text>
+          <View style={styles.certTable}>
+            <View style={styles.certRow}>
+              <View style={[styles.certHeaderCell, styles.certColName]}>
+                <Text style={styles.certHeaderText}>Certification Name</Text>
+              </View>
+              <View style={[styles.certHeaderCell, styles.certColIssuer]}>
+                <Text style={styles.certHeaderText}>
+                  Company/Institute
                 </Text>
-              );
-            })}
+              </View>
+              <View style={[styles.certHeaderCell, styles.certColStart]}>
+                <Text style={styles.certHeaderText}>Start Date</Text>
+              </View>
+              <View style={[styles.certHeaderCell, styles.certColEnd]}>
+                <Text style={styles.certHeaderText}>Valid Until</Text>
+              </View>
+            </View>
+
+            {certRows.map((cert: any, i: number) => (
+              <View key={i} style={styles.certRow}>
+                <View style={[styles.certCell, styles.certColName]}>
+                  <Text style={styles.certCellText}>
+                    {s(cert.name || cert.title || "") || " "}
+                  </Text>
+                </View>
+                <View style={[styles.certCell, styles.certColIssuer]}>
+                  <Text style={styles.certCellText}>
+                    {s(cert.issuer || cert.org || cert.company || "") || " "}
+                  </Text>
+                </View>
+                <View style={[styles.certCell, styles.certColStart]}>
+                  <Text style={styles.certCellText}>
+                    {s(cert.start || "") || " "}
+                  </Text>
+                </View>
+                <View style={[styles.certCell, styles.certColEnd]}>
+                  <Text style={styles.certCellText}>
+                    {s(cert.end || cert.validUntil || "") || " "}
+                  </Text>
+                </View>
+              </View>
+            ))}
           </View>
-        ) : null}
+        </View>
 
         {/* ───────── LANGUAGE SKILLS ───────── */}
         {(motherTongues.length || languages.length) && (

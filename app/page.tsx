@@ -52,6 +52,9 @@ type TemplateId =
   | "pdf-europass"
   | "pdf-europass2"
   | "docx-ep"
+  | "docx-kyndryl"
+  | "docx-europass"
+  | "docx-europass2"
   | "pptx-kyndryl-sm";
 
 const DEFAULT_TEMPLATE: TemplateId = "pdf-kyndryl";
@@ -64,6 +67,9 @@ const TEMPLATE_META: Record<
   "pdf-europass": { kind: "pdf", label: "Europass PDF" },
   "pdf-europass2": { kind: "pdf", label: "Europass 2 PDF" },
   "docx-ep": { kind: "docx", label: "European Parliament DOCX" },
+  "docx-kyndryl": { kind: "docx", label: "Kyndryl DOCX" },
+  "docx-europass": { kind: "docx", label: "Europass DOCX" },
+  "docx-europass2": { kind: "docx", label: "Europass 2 DOCX" },
   "pptx-kyndryl-sm": { kind: "pptx", label: "Kyndryl SM PPTX" },
 };
 
@@ -196,7 +202,13 @@ export default function Page() {
       };
 
       // Force HTML path for DOCX/PPTX previews
-      if (template === "docx-ep" || template === "pptx-kyndryl-sm") {
+      if (
+        template === "docx-ep" ||
+        template === "docx-kyndryl" ||
+        template === "docx-europass" ||
+        template === "docx-europass2" ||
+        template === "pptx-kyndryl-sm"
+      ) {
         const html = await res.text().catch(() => "");
         const page = html?.trim()
           ? html

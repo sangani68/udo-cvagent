@@ -5,7 +5,8 @@ import { NextRequest, NextResponse } from "next/server";
 import type { CVJson } from "@/lib/cvSchema";
 import type { MaskPolicy } from "@/lib/mask";
 import { buildViewData } from "@/lib/preview-pipeline";
-import { buildHtmlPreview } from "@/lib/htmlPreview";
+import { buildKyndrylSMView } from "@/lib/kyndryl-sm";
+import { makeKyndrylSM } from "@/lib/pptx/KyndrylSM";
 import { uploadToCvkb } from "@/lib/azure";
 import { buildExportFilename } from "@/lib/export-utils";
 
@@ -45,21 +46,24 @@ export async function POST(req: NextRequest) {
 
     const { data } = await buildViewData(viewBody);
 
-    // HTML snapshot for PPTX template (Kyndryl SM)
-    const html = await buildHtmlPreview(data, templateId);
-    const bytes = Buffer.from(html, "utf8");
+    const view = await buildKyndrylSMView(data, targetLocale);
+    const bytes = (await makeKyndrylSM(view)) as Buffer;
 
     const filename = buildExportFilename(
       "KyndrylSM",
       data?.candidate?.name || "Candidate",
-      "pptx.html"
+      "pptx"
     );
 
     // Best-effort: upload to blob + sync into search
     try {
-      await uploadToCvkb(`exports/${filename}`, bytes, "text/html; charset=utf-8");
+      await uploadToCvkb(
+        `exports/${filename}`,
+        bytes,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+      );
       const origin = new URL(req.url).origin;
-      await fetch(`${origin}/api/blob/run-and-wait?timeout=120&interval=3000`, {
+      await fetch(`${origin}/api/blob/run-and-wait?timeout=120&interval=3000&forceStart=1`, {
         method: "POST",
       });
       await fetch(`${origin}/api/hydrate-hybrid`, {
@@ -77,7 +81,8 @@ export async function POST(req: NextRequest) {
     return new NextResponse(bytes, {
       status: 200,
       headers: {
-        "Content-Type": "text/html; charset=utf-8",
+        "Content-Type":
+          "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         "Content-Disposition": `attachment; filename="${filename}"`,
       },
     });

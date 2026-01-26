@@ -7,7 +7,16 @@
 type Link = { label: string; url: string };
 type Bullet = { text: string };
 type Job = { title: string; company: string; start: string; end: string; location: string; bullets: Bullet[] };
-type Edu = { school: string; degree: string; start: string; end: string; location: string; bullets: Bullet[] };
+type Edu = {
+  school: string;
+  degree: string;
+  fieldOfStudy: string;
+  eqfLevel: string;
+  start: string;
+  end: string;
+  location: string;
+  bullets: Bullet[];
+};
 
 export type IdentityCV = {
   identity: { full_name: string; email: string; phone: string; location: string; links: Link[]; photo: string };
@@ -311,6 +320,8 @@ function parseEducation(b: Record<string, string[]>) {
   const out: Edu[] = [];
   let cur: Edu | null = null;
   const DEG_RE = /(Bachelor|Master|BSc|MSc|BA|MA|MBA|PhD|MPhil|Diploma|Certificate|B\.?Eng|M\.?Eng|B\.?Tech|M\.?Tech|LLB|LLM|MD|DDS|DPhil|PG|MS|BS|BE)/i;
+  const FIELD_RE = /^(?:Field(?:\(s\))?\s*of\s*study|Field\s*of\s*studies|Major|Specialization|Discipline)\s*:\s*(.+)$/i;
+  const EQF_RE = /^(?:Level\s*in\s*EQF|EQF\s*Level|EQF)\s*:\s*(.+)$/i;
 
   const push = () => {
     if (!cur) return;
@@ -323,6 +334,10 @@ function parseEducation(b: Record<string, string[]>) {
     const l = block[i];
 
     if (BULLET.test(l) && cur) { cur.bullets.push({ text: l.replace(BULLET, "").trim() }); continue; }
+    const fieldMatch = l.match(FIELD_RE);
+    if (fieldMatch && cur) { cur.fieldOfStudy = fieldMatch[1].trim(); continue; }
+    const eqfMatch = l.match(EQF_RE);
+    if (eqfMatch && cur) { cur.eqfLevel = eqfMatch[1].trim(); continue; }
 
     const hasDeg = DEG_RE.test(l);
     const looksSchool = /University|College|School|Institute|Polytechnic|École|Universität|Universidade|Politecnico|Instituto|Academy/i.test(l) || isAllCaps(l);
@@ -330,7 +345,7 @@ function parseEducation(b: Record<string, string[]>) {
     if ((hasDeg || looksSchool) && !/^(skills|languages|experience|projects|certifications)/i.test(l)) {
       push();
 
-      let school = "", degree = "", start = "", end = "", location = "";
+      let school = "", degree = "", fieldOfStudy = "", eqfLevel = "", start = "", end = "", location = "";
       const next = block[i + 1] || "", next2 = block[i + 2] || "";
 
       const sep = l.match(/\s+(?:–|—|-|\|)\s+/);
@@ -350,7 +365,12 @@ function parseEducation(b: Record<string, string[]>) {
       location = chooseBestLocation(locCandidates);
       start = ds; end = de;
 
-      cur = { school, degree, start, end, location, bullets: [] };
+      const fieldInline = [l, next, next2].map((x) => x.match(FIELD_RE)).find(Boolean);
+      const eqfInline = [l, next, next2].map((x) => x.match(EQF_RE)).find(Boolean);
+      if (fieldInline) fieldOfStudy = fieldInline[1].trim();
+      if (eqfInline) eqfLevel = eqfInline[1].trim();
+
+      cur = { school, degree, fieldOfStudy, eqfLevel, start, end, location, bullets: [] };
       continue;
     }
 

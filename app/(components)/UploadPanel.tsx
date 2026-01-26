@@ -61,6 +61,17 @@ export default function UploadPanel({ onLoaded }: Props) {
         idxJson = await idxRes.json().catch(() => ({}));
       }
 
+      setStatus("Syncing search…");
+      setProgress(55);
+      await fetch("/api/hydrate-hybrid", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          since: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+          top: 1000,
+        }),
+      }).catch(() => {});
+
       setStatus("Waiting for extracted text…");
       setProgress(60);
       let content: string | undefined;

@@ -78,6 +78,10 @@ export function strengthenForEditor(cv: any) {
   const education = (eduSrc || []).map((e: any) => {
     const school = str(e?.school || e?.institution);
     const degree = str(e?.degree || e?.studyType);
+    const fieldOfStudy = str(
+      e?.fieldOfStudy || e?.field || e?.studyField || e?.major || e?.specialization || e?.area
+    );
+    const eqfLevel = str(e?.eqfLevel || e?.eqf || e?.levelEqf || e?.eqf_level || e?.level);
     const start = str(e?.start || e?.from || e?.startDate);
     const end = str(e?.end || e?.to || e?.endDate);
     const location = str(e?.location);
@@ -90,6 +94,8 @@ export function strengthenForEditor(cv: any) {
       institution: school,         // alias
       degree,
       studyType: degree,           // alias
+      fieldOfStudy,
+      eqfLevel,
       start, end,
       from: start, to: end,        // aliases
       startDate: start, endDate: end,

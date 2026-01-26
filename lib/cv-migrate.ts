@@ -188,6 +188,10 @@ function normalizeEducationItem(ed: any) {
   return {
     title: clean(ed?.title || ed?.degree || ed?.qualification || ed?.program || ed?.field),
     org: clean(ed?.org || ed?.institution || ed?.school || ed?.university || ed?.college),
+    fieldOfStudy: clean(
+      ed?.fieldOfStudy || ed?.field || ed?.studyField || ed?.major || ed?.specialization || ed?.area
+    ),
+    eqfLevel: clean(ed?.eqfLevel || ed?.eqf || ed?.levelEqf || ed?.eqf_level || ed?.level),
     start: clean(ed?.start || ed?.from || ed?.startDate || ed?.period?.from || ed?.period?.start),
     end: clean(ed?.end || ed?.to || ed?.endDate || ed?.period?.to || ed?.period?.end),
     location: clean(ed?.location),

@@ -82,7 +82,11 @@ function groupByNamePreferNewest(docs: SearchDoc[]) {
     const pb = Date.parse(d.updatedAt || "1970-01-01");
     if (pb > pa) map.set(key, d);
   }
-  return Array.from(map.values());
+  return Array.from(map.values()).sort((a, b) => {
+    const pa = Date.parse(a.updatedAt || "1970-01-01");
+    const pb = Date.parse(b.updatedAt || "1970-01-01");
+    return pb - pa;
+  });
 }
 
 /** ---------- Admin: drop / create / indexer ---------- */

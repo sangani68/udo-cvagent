@@ -123,6 +123,48 @@ const styles = StyleSheet.create({
   li: { marginLeft: 10, marginTop: 2 },
   muted: { color: TEXT_MUTED },
   breakable: {},
+
+  // Certifications table
+  certTable: {
+    width: "100%",
+    borderWidth: 0.5,
+    borderColor: EURO_BLUE,
+    marginTop: 4,
+  },
+  certRow: {
+    flexDirection: "row",
+  },
+  certHeaderCell: {
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+    backgroundColor: EURO_BLUE,
+    borderRightWidth: 0.5,
+    borderRightColor: EURO_BLUE,
+    justifyContent: "center",
+  },
+  certHeaderText: {
+    fontSize: 9,
+    color: "#FFFFFF",
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  certCell: {
+    paddingVertical: 3,
+    paddingHorizontal: 4,
+    borderTopWidth: 0.5,
+    borderTopColor: EURO_BLUE,
+    borderRightWidth: 0.5,
+    borderRightColor: EURO_BLUE,
+    justifyContent: "center",
+  },
+  certCellText: {
+    fontSize: 9,
+    color: TEXT_PRIMARY,
+  },
+  certColName: { width: "38%" },
+  certColIssuer: { width: "32%" },
+  certColStart: { width: "15%" },
+  certColEnd: { width: "15%" },
 });
 
 function getExperiences(c: any): any[] {
@@ -160,6 +202,13 @@ export default function EuropassPDF({ data }: { data: CvData }) {
     .filter(Boolean)
     .map(s)
     .join(" · ");
+
+  const certs: any[] = Array.isArray(c.certifications)
+    ? c.certifications
+    : Array.isArray(c.certificates)
+    ? c.certificates
+    : [];
+  const certRows = certs.length ? certs : [{}];
 
   // EU logo: candidate.euLogoUrl (data URL) overrides static file if present
   const euLogoSrc =
@@ -281,6 +330,16 @@ export default function EuropassPDF({ data }: { data: CvData }) {
                       {s(ed?.degree) || "Degree"}
                       {ed?.school ? " — " + s(ed?.school) : ""}
                     </Text>
+                    {ed?.fieldOfStudy || ed?.field || ed?.studyField || ed?.major || ed?.specialization || ed?.area ? (
+                      <Text style={[styles.muted, styles.breakable]}>
+                        Field(s) of study: {s(ed?.fieldOfStudy || ed?.field || ed?.studyField || ed?.major || ed?.specialization || ed?.area)}
+                      </Text>
+                    ) : null}
+                    {ed?.eqfLevel || ed?.eqf || ed?.levelEqf ? (
+                      <Text style={[styles.muted, styles.breakable]}>
+                        Level in EQF: {s(ed?.eqfLevel || ed?.eqf || ed?.levelEqf)}
+                      </Text>
+                    ) : null}
                     {ed?.start || ed?.end ? (
                       <Text style={styles.breakable}>
                         {s(ed?.start) || "—"} – {s(ed?.end) || "—"}
@@ -291,29 +350,50 @@ export default function EuropassPDF({ data }: { data: CvData }) {
               </View>
             ) : null}
 
-            {Array.isArray(c.certifications || c.certificates) &&
-            (c.certifications || c.certificates).length ? (
-              <View style={styles.section}>
-                <Text style={styles.h1}>Certifications/Trainings</Text>
-                {(c.certifications || c.certificates).map((cert: any, i: number) => {
-                  const name = s(cert.name || cert.title || "");
-                  const issuer = s(cert.issuer || cert.org || cert.company || "");
-                  const start = s(cert.start || "");
-                  const end = s(cert.end || cert.validUntil || "");
-                  const date =
-                    s(cert.date || "") ||
-                    (start && end ? `${start} – ${end}` : start || end);
-                  const line = [name || "Certification", issuer, date]
-                    .filter(Boolean)
-                    .join(" · ");
-                  return (
-                    <Text key={i} style={styles.breakable}>
-                      {line}
-                    </Text>
-                  );
-                })}
+            <View style={styles.section}>
+              <Text style={styles.h1}>Certifications/Trainings</Text>
+              <View style={styles.certTable}>
+                <View style={styles.certRow}>
+                  <View style={[styles.certHeaderCell, styles.certColName]}>
+                    <Text style={styles.certHeaderText}>Certification Name</Text>
+                  </View>
+                  <View style={[styles.certHeaderCell, styles.certColIssuer]}>
+                    <Text style={styles.certHeaderText}>Company/Institute</Text>
+                  </View>
+                  <View style={[styles.certHeaderCell, styles.certColStart]}>
+                    <Text style={styles.certHeaderText}>Start Date</Text>
+                  </View>
+                  <View style={[styles.certHeaderCell, styles.certColEnd]}>
+                    <Text style={styles.certHeaderText}>Valid Until</Text>
+                  </View>
+                </View>
+
+                {certRows.map((cert: any, i: number) => (
+                  <View key={i} style={styles.certRow}>
+                    <View style={[styles.certCell, styles.certColName]}>
+                      <Text style={styles.certCellText}>
+                        {s(cert.name || cert.title || "") || " "}
+                      </Text>
+                    </View>
+                    <View style={[styles.certCell, styles.certColIssuer]}>
+                      <Text style={styles.certCellText}>
+                        {s(cert.issuer || cert.org || cert.company || "") || " "}
+                      </Text>
+                    </View>
+                    <View style={[styles.certCell, styles.certColStart]}>
+                      <Text style={styles.certCellText}>
+                        {s(cert.start || "") || " "}
+                      </Text>
+                    </View>
+                    <View style={[styles.certCell, styles.certColEnd]}>
+                      <Text style={styles.certCellText}>
+                        {s(cert.end || cert.validUntil || "") || " "}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
               </View>
-            ) : null}
+            </View>
           </View>
         </View>
       </Page>

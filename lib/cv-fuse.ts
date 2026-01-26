@@ -120,6 +120,12 @@ function normalizeLoose(cv: PartialCV): PartialCV {
       school: (ed?.school || (ed as any)?.institute || "")
         .toString()
         .trim(),
+      fieldOfStudy: (ed?.fieldOfStudy || (ed as any)?.field || (ed as any)?.area || "")
+        .toString()
+        .trim(),
+      eqfLevel: (ed?.eqfLevel || (ed as any)?.eqf || (ed as any)?.levelEqf || "")
+        .toString()
+        .trim(),
       start: (ed?.start || "").toString().trim(),
       end: (ed?.end || "").toString().trim(),
       location: (ed?.location || "").toString().trim(),

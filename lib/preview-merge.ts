@@ -25,7 +25,14 @@ function mapPreviewEduItem(it: any) {
       it?.org ||
       "",
     degree: it?.degree || it?.qualification || it?.title || "",
-    area: it?.field || it?.area || it?.major || "",
+    fieldOfStudy:
+      it?.fieldOfStudy ||
+      it?.field ||
+      it?.area ||
+      it?.major ||
+      it?.specialization ||
+      "",
+    eqfLevel: it?.eqfLevel || it?.eqf || it?.levelEqf || it?.eqf_level || "",
     location: it?.location || it?.city || "",
     startDate: start || "",
     endDate: end || "",

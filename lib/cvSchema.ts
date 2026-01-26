@@ -15,6 +15,8 @@ export type ExperienceItem = {
 export type EducationItem = {
   degree?: string;
   school?: string;
+  fieldOfStudy?: string;
+  eqfLevel?: string;
   start?: string;
   end?: string;
   location?: string;
@@ -128,6 +130,15 @@ export function migrateCvShape(input: any): CVJson {
   const education: EducationItem[] = asArray(educationIn).map((ed) => ({
     degree: asStr(ed?.degree),
     school: asStr(ed?.school || ed?.institute),
+    fieldOfStudy: asStr(
+      ed?.fieldOfStudy ||
+        ed?.field ||
+        ed?.studyField ||
+        ed?.major ||
+        ed?.specialization ||
+        ed?.area
+    ),
+    eqfLevel: asStr(ed?.eqfLevel || ed?.eqf || ed?.levelEqf || ed?.level),
     start: asStr(ed?.start),
     end: asStr(ed?.end),
     location: asStr(ed?.location),

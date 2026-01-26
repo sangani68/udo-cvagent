@@ -4,6 +4,7 @@ import React from "react";
 import ReactPDF from "@react-pdf/renderer";
 import { buildViewData } from "@/lib/preview-pipeline";
 import { buildHtmlPreview } from "@/lib/htmlPreview";
+import { buildKyndrylSMHtml, buildKyndrylSMView } from "@/lib/kyndryl-sm";
 
 export const runtime = "nodejs";
 
@@ -56,8 +57,25 @@ export async function POST(req: NextRequest) {
       maskPolicy: body?.maskPolicy,
     });
 
-    if (template === "docx-ep" || template === "pptx-kyndryl-sm") {
+    if (
+      template === "docx-ep" ||
+      template === "docx-kyndryl" ||
+      template === "docx-europass" ||
+      template === "docx-europass2"
+    ) {
       const html = await buildHtmlPreview(data, template);
+      return new Response(html, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          "Cache-Control": "no-store",
+        },
+      });
+    }
+
+    if (template === "pptx-kyndryl-sm") {
+      const view = await buildKyndrylSMView(data, locale);
+      const html = buildKyndrylSMHtml(view);
       return new Response(html, {
         status: 200,
         headers: {

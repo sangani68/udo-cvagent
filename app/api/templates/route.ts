@@ -10,6 +10,9 @@ type TemplateId =
   | "pdf-europass"
   | "pdf-europass2"
   | "docx-ep"
+  | "docx-kyndryl"
+  | "docx-europass"
+  | "docx-europass2"
   | "pptx-kyndryl-sm";
 
 type TemplateEntry = {
@@ -80,6 +83,45 @@ const templates: TemplateEntry[] = [
       path: "/api/export/docx",
       method: "POST",
       // DOCX route currently builds EP Form 6 directly; no extra template param required
+    },
+  },
+  {
+    id: "docx-kyndryl",
+    key: "docx-kyndryl",
+    label: "Kyndryl DOCX",
+    kind: "docx",
+    ext: "docx",
+    previewable: false,
+    export: {
+      path: "/api/export/docx",
+      method: "POST",
+      template: "docx-kyndryl",
+    },
+  },
+  {
+    id: "docx-europass",
+    key: "docx-europass",
+    label: "Europass DOCX",
+    kind: "docx",
+    ext: "docx",
+    previewable: false,
+    export: {
+      path: "/api/export/docx",
+      method: "POST",
+      template: "docx-europass",
+    },
+  },
+  {
+    id: "docx-europass2",
+    key: "docx-europass2",
+    label: "Europass 2 DOCX",
+    kind: "docx",
+    ext: "docx",
+    previewable: false,
+    export: {
+      path: "/api/export/docx",
+      method: "POST",
+      template: "docx-europass2",
     },
   },
   {

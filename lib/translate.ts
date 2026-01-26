@@ -98,6 +98,8 @@ export async function translateCV(
         ...ed,
         school: await t(ed?.school),
         degree: await t(ed?.degree),
+        fieldOfStudy: await t(ed?.fieldOfStudy ?? ed?.field ?? ed?.area),
+        eqfLevel: await t(ed?.eqfLevel ?? ed?.eqf ?? ed?.levelEqf),
       }))
     );
   }
@@ -160,6 +162,8 @@ export async function translateCV(
           ...ed,
           school: await t(ed?.school),
           degree: await t(ed?.degree),
+          fieldOfStudy: await t(ed?.fieldOfStudy ?? ed?.field ?? ed?.area),
+          eqfLevel: await t(ed?.eqfLevel ?? ed?.eqf ?? ed?.levelEqf),
           location: await t(ed?.location),
         }))
       );

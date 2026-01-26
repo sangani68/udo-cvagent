@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
     try {
       await uploadToCvkb(`exports/${filename}`, buf, "application/pdf");
       const origin = new URL(req.url).origin;
-      await fetch(`${origin}/api/blob/run-and-wait?timeout=120&interval=3000`, {
+      await fetch(`${origin}/api/blob/run-and-wait?timeout=120&interval=3000&forceStart=1`, {
         method: "POST",
       });
       await fetch(`${origin}/api/hydrate-hybrid`, {

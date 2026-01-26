@@ -5,7 +5,11 @@ import { toEpFormData } from "@/lib/ep-docx";
 const COLORS: Record<string, { accent: string }> = {
   "pdf-kyndryl": { accent: "#FF462D" },
   "pdf-europass": { accent: "#0A66CC" },
+  "pdf-europass2": { accent: "#003399" },
   "docx-ep": { accent: "#0054A6" },
+  "docx-kyndryl": { accent: "#FF462D" },
+  "docx-europass": { accent: "#0A66CC" },
+  "docx-europass2": { accent: "#003399" },
   "pptx-kyndryl-sm": { accent: "#FF462D" },
 };
 
@@ -177,6 +181,22 @@ function defaultHtml(raw: CvData, accent: string) {
   const data = raw || ({} as CvData);
   const c: any = (data as any).candidate ?? {};
   const contacts: any = c.contacts ?? {};
+  const pickArray = (...vals: any[]) => {
+    for (const v of vals) if (Array.isArray(v) && v.length) return v;
+    return [];
+  };
+  const expList = pickArray(
+    c.experiences,
+    c.experience,
+    (data as any).experiences,
+    (data as any).experience
+  );
+  const eduList = pickArray(
+    c.education,
+    c.educations,
+    (data as any).education,
+    (data as any).educations
+  );
 
   const header = `
     <header>
@@ -202,21 +222,27 @@ function defaultHtml(raw: CvData, accent: string) {
 
 
   const experience =
-    Array.isArray((data as any).experience) && (data as any).experience.length
+    expList.length
       ? `<section><h2>Experience</h2>
-          ${(data as any).experience
+          ${expList
             .map((e: any) => {
+              const role = e.role || e.title || "";
+              const employer = e.employer || e.company || "";
               const dates = [e.start, e.end].filter(Boolean).join(" – ");
+              const bullets = Array.isArray(e.bullets) ? e.bullets : [];
+              const bulletLines = bullets
+                .map((b: any) => (typeof b === "string" ? b : b?.text))
+                .filter(Boolean);
               return `<div class="role">
                 <div class="line1">
-                  ${e.role ? `<span class="role-title">${esc(e.role)}</span>` : ""}
-                  ${e.employer ? `<span class="employer"> @ ${esc(e.employer)}</span>` : ""}
+                  ${role ? `<span class="role-title">${esc(role)}</span>` : ""}
+                  ${employer ? `<span class="employer"> @ ${esc(employer)}</span>` : ""}
                 </div>
                 ${e.location ? `<div class="muted">${esc(e.location)}</div>` : ""}
                 ${dates ? `<div class="muted">${esc(dates)}</div>` : ""}
                 ${
-                  Array.isArray(e.bullets) && e.bullets.length
-                    ? `<ul class="bullets">${e.bullets
+                  bulletLines.length
+                    ? `<ul class="bullets">${bulletLines
                         .map((b: any) => `<li>${esc(b)}</li>`)
                         .join("")}</ul>`
                     : ""
@@ -228,16 +254,21 @@ function defaultHtml(raw: CvData, accent: string) {
       : "";
 
   const education =
-    Array.isArray((data as any).education) && (data as any).education.length
+    eduList.length
       ? `<section><h2>Education</h2>
-          ${(data as any).education
+          ${eduList
             .map((ed: any) => {
               const dates = [ed.start, ed.end].filter(Boolean).join(" – ");
+              const fieldOfStudy =
+                ed.fieldOfStudy || ed.field || ed.studyField || ed.major || ed.specialization || ed.area;
+              const eqfLevel = ed.eqfLevel || ed.eqf || ed.levelEqf;
               return `<div class="edu">
                 <div class="line1">
                   ${ed.degree ? `<span class="degree">${esc(ed.degree)}</span>` : ""}
                   ${ed.school ? `<span class="school"> — ${esc(ed.school)}</span>` : ""}
                 </div>
+                ${fieldOfStudy ? `<div class="muted">Field(s) of study: ${esc(fieldOfStudy)}</div>` : ""}
+                ${eqfLevel ? `<div class="muted">Level in EQF: ${esc(eqfLevel)}</div>` : ""}
                 ${ed.location ? `<div class="muted">${esc(ed.location)}</div>` : ""}
                 ${dates ? `<div class="muted">${esc(dates)}</div>` : ""}
               </div>`;
@@ -251,22 +282,37 @@ function defaultHtml(raw: CvData, accent: string) {
     : Array.isArray(c.certificates)
     ? c.certificates
     : [];
+  const certRows = certList.length ? certList : [{}];
+  const certCell = (v: any) => {
+    const txt = v == null ? "" : String(v);
+    return txt.trim() ? esc(txt) : "&nbsp;";
+  };
 
   const certifications =
-    certList.length
-      ? `<section><h2>Certifications/Trainings</h2><ul class="bullets">${certList
-          .map((cert: any) => {
-            const name = esc(cert.name || cert.title || "Certification");
-            const issuer = esc(cert.issuer || cert.org || cert.company || "");
-            const date = esc(
-              cert.date ||
-                ([cert.start, cert.end].filter(Boolean).join(" – ") || "")
-            );
-            const parts = [name, issuer].filter(Boolean).join(" — ");
-            return `<li>${parts}${date ? ` (${date})` : ""}</li>`;
-          })
-          .join("")}</ul></section>`
-      : "";
+    `<section><h2>Certifications/Trainings</h2>
+      <table class="cert-table">
+        <thead>
+          <tr>
+            <th>Certification Name</th>
+            <th>Company/Institute</th>
+            <th>Start Date</th>
+            <th>Valid Until</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${certRows
+            .map(
+              (cert: any) => `<tr>
+                <td>${certCell(cert.name || cert.title || "")}</td>
+                <td>${certCell(cert.issuer || cert.org || cert.company || "")}</td>
+                <td>${certCell(cert.start || "")}</td>
+                <td>${certCell(cert.end || cert.validUntil || "")}</td>
+              </tr>`
+            )
+            .join("")}
+        </tbody>
+      </table>
+    </section>`;
 
   // Languages last
   const languages =
@@ -298,6 +344,9 @@ function defaultHtml(raw: CvData, accent: string) {
     .bullets { margin:8px 0 0 18px; }
     .bullets li { margin:2px 0; }
     .langs { margin:0 0 0 18px; }
+    .cert-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 6px; }
+    .cert-table th { text-align: left; background: ${accent}; color: #fff; padding: 6px; border: 1px solid ${accent}; }
+    .cert-table td { padding: 6px; border: 1px solid ${accent}; }
   `;
 
   return `<!doctype html>

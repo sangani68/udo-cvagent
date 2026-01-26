@@ -6,6 +6,9 @@ export type TemplateId =
   | "pdf-europass"
   | "pdf-europass2"
   | "docx-ep"
+  | "docx-kyndryl"
+  | "docx-europass"
+  | "docx-europass2"
   | "pptx-kyndryl-sm";
 
 export type PreviewState =
@@ -23,7 +26,7 @@ export function safeFileBase(s: string) {
 
 export function chooseExportRoute(tpl: TemplateId) {
   if (tpl.startsWith("pdf")) return "/api/export/pdf";
-  if (tpl === "docx-ep") return "/api/export/docx";
+  if (tpl.startsWith("docx")) return "/api/export/docx";
   if (tpl === "pptx-kyndryl-sm") return "/api/export/pptx";
   return "/api/export/pdf";
 }
@@ -120,6 +123,10 @@ export function buildHtmlSnapshot(data: CvData, _template: TemplateId) {
       lines.push(
         `<h3>${head}${dates ? ` <small>(${dates})</small>` : ""}</h3>`
       );
+      const fieldOfStudy = ed?.fieldOfStudy || ed?.field || ed?.area || ed?.major || ed?.specialization;
+      const eqfLevel = ed?.eqfLevel || ed?.eqf || ed?.levelEqf;
+      if (fieldOfStudy) lines.push(`<p>Field(s) of study: ${esc(fieldOfStudy)}</p>`);
+      if (eqfLevel) lines.push(`<p>Level in EQF: ${esc(eqfLevel)}</p>`);
       const details = (ed as any)?.details;
       if (details) lines.push(`<p>${esc(details)}</p>`);
     }

@@ -156,6 +156,12 @@ export async function buildEPDocx(data: CvData): Promise<Buffer> {
           : ""
       }`;
       children.push(P(line));
+      if (ed.fieldOfStudy || ed.field || ed.studyField || ed.major || ed.specialization || ed.area) {
+        children.push(P(`Field(s) of study: ${ed.fieldOfStudy || ed.field || ed.studyField || ed.major || ed.specialization || ed.area}`));
+      }
+      if (ed.eqfLevel || ed.eqf || ed.levelEqf) {
+        children.push(P(`Level in EQF: ${ed.eqfLevel || ed.eqf || ed.levelEqf}`));
+      }
     });
   }
 

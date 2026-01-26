@@ -11,7 +11,7 @@ Return STRICT JSON only in this shape:
     "contacts": { "email"?: string, "phone"?: string, "linkedin"?: string },
     "skills": string[],
     "experience": [{ "employer"?: string, "role"?: string, "start"?: string, "end"?: string, "location"?: string, "bullets": [{ "text": string }] }],
-    "education": [{ "degree"?: string, "school"?: string, "start"?: string, "end"?: string, "location"?: string }],
+    "education": [{ "degree"?: string, "school"?: string, "fieldOfStudy"?: string, "eqfLevel"?: string, "start"?: string, "end"?: string, "location"?: string }],
     "languages": [{ "name": string, "level"?: string }]
   },
   "_meta"?: { "confidence"?: number, "gaps"?: string[] }
@@ -125,6 +125,8 @@ export async function textToCvJson(text: string, opts?: LlmOpts): Promise<LlmCv>
       education: fix(c?.education, (ed) => ({
         degree: String(ed?.degree || "").trim(),
         school: String(ed?.school || ed?.institute || "").trim(),
+        fieldOfStudy: String(ed?.fieldOfStudy || ed?.field || ed?.major || "").trim(),
+        eqfLevel: String(ed?.eqfLevel || ed?.eqf || "").trim(),
         start: String(ed?.start || "").trim(),
         end: String(ed?.end || "").trim(),
         location: String(ed?.location || "").trim(),

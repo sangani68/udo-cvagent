@@ -33,6 +33,8 @@ export type CvData = {
     education: Array<{
       degree?: string;
       school?: string;
+      fieldOfStudy?: string;
+      eqfLevel?: string;
       start?: string;
       end?: string;
       location?: string;
@@ -233,6 +235,10 @@ export function toPreviewModel(cv: CVJson): CvData {
   const education = (eduSources as any[]).map((ed: any) => ({
     degree:   String(ed?.degree ?? ed?.qualification ?? ed?.title ?? "").trim(),
     school:   String(ed?.school ?? ed?.institute ?? ed?.university ?? "").trim(),
+    fieldOfStudy: String(
+      ed?.fieldOfStudy ?? ed?.field ?? ed?.studyField ?? ed?.major ?? ed?.specialization ?? ed?.area ?? ""
+    ).trim(),
+    eqfLevel: String(ed?.eqfLevel ?? ed?.eqf ?? ed?.levelEqf ?? ed?.eqf_level ?? "").trim(),
     start:    String(ed?.start ?? ed?.from ?? ed?.startDate ?? ed?.dateFrom ?? "").trim(),
     end:      String(ed?.end ?? ed?.to ?? ed?.endDate ?? ed?.dateTo ?? "").trim(),
     location: String(ed?.location ?? ed?.city ?? "").trim(),

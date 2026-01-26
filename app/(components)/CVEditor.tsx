@@ -323,6 +323,18 @@ export function CVEditor({ value, onChange }: Props) {
             />
             <input
               className="rounded border px-2 py-1 text-sm"
+              placeholder="Field(s) of study"
+              value={ed.fieldOfStudy || ""}
+              onChange={(ev) => update((d) => ((d.education = d.education || [])[i].fieldOfStudy = ev.target.value))}
+            />
+            <input
+              className="rounded border px-2 py-1 text-sm"
+              placeholder="Level in EQF"
+              value={ed.eqfLevel || ""}
+              onChange={(ev) => update((d) => ((d.education = d.education || [])[i].eqfLevel = ev.target.value))}
+            />
+            <input
+              className="rounded border px-2 py-1 text-sm"
               placeholder="Start"
               value={ed.start || ""}
               onChange={(ev) => update((d) => ((d.education = d.education || [])[i].start = ev.target.value))}
@@ -344,7 +356,14 @@ export function CVEditor({ value, onChange }: Props) {
         <div className="flex gap-2">
           <button
             className="rounded border px-2 py-1 text-xs hover:bg-gray-50"
-            onClick={() => update((d) => (d.education = [...(d.education || []), { degree: "", school: "" }]))}
+            onClick={() =>
+              update((d) =>
+                (d.education = [
+                  ...(d.education || []),
+                  { degree: "", school: "", fieldOfStudy: "", eqfLevel: "" },
+                ])
+              )
+            }
           >
             + Add education
           </button>

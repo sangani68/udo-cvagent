@@ -3,6 +3,8 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import dayjs from "dayjs";
+import fs from "fs";
+import path from "path";
 import {
   Document,
   Packer,
@@ -16,6 +18,7 @@ import {
   HeadingLevel,
   DeletedTextRun,
   BorderStyle,
+  ImageRun,
 } from "docx";
 
 import { buildViewData } from "@/lib/preview-pipeline";
@@ -30,8 +33,8 @@ type Body = {
   locale?: string;
   maskPersonal?: boolean;
   maskPolicy?: MaskPolicy;
-  template?: string; // "docx-ep"
-  templateId?: string; // "docx-ep"
+  template?: string; // "docx-ep" | "docx-kyndryl" | "docx-europass" | "docx-europass2"
+  templateId?: string; // "docx-ep" | "docx-kyndryl" | "docx-europass" | "docx-europass2"
 };
 
 const S = (v: any, fb = "") => (v == null ? fb : String(v).trim() || fb);
@@ -126,6 +129,603 @@ function multilineParagraph(text: string | undefined | null) {
       ])
       .filter(Boolean) as TextRun[],
   });
+}
+
+const EU_BLUE = "003399";
+const KYNDYRL_RED = "FF462D";
+
+function loadPublicImage(filename: string): Buffer | null {
+  try {
+    const p = path.join(process.cwd(), "public", filename);
+    return fs.readFileSync(p);
+  } catch {
+    return null;
+  }
+}
+
+const EU_LOGO = loadPublicImage("eu-logo.png");
+const KYNDYRL_LOGO = loadPublicImage("kyndryl-logo.png");
+
+function titlePara(text: string, color?: string, size = 32) {
+  return new Paragraph({
+    children: [
+      new TextRun({
+        text,
+        bold: true,
+        size,
+        color,
+      }),
+    ],
+  });
+}
+
+function sectionTitle(text: string, color: string) {
+  return new Paragraph({
+    spacing: { before: 200, after: 80 },
+    children: [
+      new TextRun({
+        text,
+        bold: true,
+        color,
+        size: 24,
+      }),
+    ],
+  });
+}
+
+function textPara(text: string, opts?: { italics?: boolean; color?: string }) {
+  return new Paragraph({
+    children: [
+      new TextRun({
+        text,
+        italics: opts?.italics,
+        color: opts?.color,
+        size: 22,
+      }),
+    ],
+  });
+}
+
+function bulletPara(text: string) {
+  return new Paragraph({
+    text,
+    bullet: { level: 0 },
+  });
+}
+
+function logoParagraph(data: Buffer | null, width: number, height: number) {
+  if (!data) return null;
+  return new Paragraph({
+    alignment: AlignmentType.RIGHT,
+    children: [
+      new ImageRun({
+        data,
+        transformation: { width, height },
+      }),
+    ],
+  });
+}
+
+function cellBorders(color: string) {
+  return {
+    top: { style: BorderStyle.SINGLE, size: 1, color },
+    bottom: { style: BorderStyle.SINGLE, size: 1, color },
+    left: { style: BorderStyle.SINGLE, size: 1, color },
+    right: { style: BorderStyle.SINGLE, size: 1, color },
+  };
+}
+
+function certTableRows(certs: any[], color: string) {
+  const rows = certs.length ? certs : [{}];
+  return rows.map((cert) =>
+    new TableRow({
+      children: [
+        new TableCell({
+          borders: cellBorders(color),
+          children: [textPara(S(cert?.name || cert?.title || " "))],
+        }),
+        new TableCell({
+          borders: cellBorders(color),
+          children: [textPara(S(cert?.issuer || cert?.org || cert?.company || " "))],
+        }),
+        new TableCell({
+          borders: cellBorders(color),
+          children: [textPara(S(cert?.start || " "))],
+        }),
+        new TableCell({
+          borders: cellBorders(color),
+          children: [textPara(S(cert?.end || cert?.validUntil || " "))],
+        }),
+      ],
+    })
+  );
+}
+
+function certificationsTable(certs: any[], color: string) {
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            borders: cellBorders(color),
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: "Certification Name",
+                    bold: true,
+                    color: "FFFFFF",
+                  }),
+                ],
+              }),
+            ],
+            shading: { fill: color },
+          }),
+          new TableCell({
+            borders: cellBorders(color),
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: "Company/Institute",
+                    bold: true,
+                    color: "FFFFFF",
+                  }),
+                ],
+              }),
+            ],
+            shading: { fill: color },
+          }),
+          new TableCell({
+            borders: cellBorders(color),
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: "Start Date",
+                    bold: true,
+                    color: "FFFFFF",
+                  }),
+                ],
+              }),
+            ],
+            shading: { fill: color },
+          }),
+          new TableCell({
+            borders: cellBorders(color),
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: "Valid Until",
+                    bold: true,
+                    color: "FFFFFF",
+                  }),
+                ],
+              }),
+            ],
+            shading: { fill: color },
+          }),
+        ],
+      }),
+      ...certTableRows(certs, color),
+    ],
+  });
+}
+
+function splitLanguageLevels(l: any) {
+  const level = S(l?.levelText || l?.level || l?.proficiency || "");
+  const listening = S(l?.listening || level);
+  const reading = S(l?.reading || level);
+  const spokenInteraction = S(l?.spokenInteraction || l?.interaction || level);
+  const spokenProduction = S(l?.spokenProduction || l?.production || level);
+  const writing = S(l?.writing || level);
+  return { listening, reading, spokenInteraction, spokenProduction, writing };
+}
+
+function pickArray(...cands: any[]): any[] {
+  for (const v of cands) {
+    if (Array.isArray(v) && v.length) return v;
+  }
+  return [];
+}
+
+function getCandidate(data: any) {
+  return data?.candidate || data?.cv?.candidate || {};
+}
+
+function getExperiences(data: any) {
+  const c = getCandidate(data);
+  return pickArray(
+    c.experiences,
+    c.experience,
+    data?.experiences,
+    data?.experience,
+    data?.cv?.experiences,
+    data?.cv?.experience
+  );
+}
+
+function getEducation(data: any) {
+  const c = getCandidate(data);
+  return pickArray(
+    c.education,
+    c.educations,
+    data?.education,
+    data?.educations,
+    data?.cv?.education,
+    data?.cv?.educations
+  );
+}
+
+function getSkills(data: any) {
+  const c = getCandidate(data);
+  return Array.isArray(c.skills) ? c.skills : Array.isArray(data?.skills) ? data.skills : [];
+}
+
+function getLanguages(data: any) {
+  const c = getCandidate(data);
+  return Array.isArray(c.languages)
+    ? c.languages
+    : Array.isArray(data?.languages)
+    ? data.languages
+    : [];
+}
+
+function getCerts(data: any) {
+  const c = getCandidate(data);
+  return pickArray(
+    c.certifications,
+    c.certificates,
+    data?.certifications,
+    data?.certificates,
+    data?.cv?.certifications,
+    data?.cv?.certificates
+  );
+}
+
+function buildKyndrylDocx(data: any) {
+  const c = getCandidate(data);
+  const contacts = [c.location, c.email, c.phone, c.website, c.linkedin]
+    .filter(Boolean)
+    .map(String)
+    .join(" · ");
+
+  const header = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            children: [
+              titlePara(S(c.fullName || c.name || "Candidate"), undefined, 36),
+              c.title ? textPara(S(c.title), { color: KYNDYRL_RED }) : new Paragraph(""),
+              contacts ? textPara(contacts, { color: "666666" }) : new Paragraph(""),
+            ],
+            width: { size: 70, type: WidthType.PERCENTAGE },
+          }),
+          new TableCell({
+            children: [logoParagraph(KYNDYRL_LOGO, 170, 34) || new Paragraph("")],
+            width: { size: 30, type: WidthType.PERCENTAGE },
+          }),
+        ],
+      }),
+    ],
+  });
+
+  const children: any[] = [header];
+
+  if (c.summary) {
+    children.push(sectionTitle("Summary", KYNDYRL_RED), textPara(S(c.summary)));
+  }
+
+  const exps = getExperiences(data);
+  if (exps.length) {
+    children.push(sectionTitle("Experience", KYNDYRL_RED));
+    exps.forEach((e: any) => {
+      const head = [e.title || e.role, e.company || e.employer].filter(Boolean).join(" — ");
+      const dates = [e.start, e.end].filter(Boolean).join(" – ");
+      const loc = e.location ? ` · ${e.location}` : "";
+      children.push(textPara(`${head || "Role"}${dates ? ` (${dates})` : ""}${loc}`));
+      const bullets = Array.isArray(e.bullets) ? e.bullets : [];
+      bullets.forEach((b: any) => {
+        const t = typeof b === "string" ? b : b?.text;
+        if (t) children.push(bulletPara(String(t)));
+      });
+    });
+  }
+
+  const edus = getEducation(data);
+  if (edus.length) {
+    children.push(sectionTitle("Education", KYNDYRL_RED));
+    edus.forEach((ed: any) => {
+      const head = [ed.degree, ed.school].filter(Boolean).join(" — ");
+      const dates = [ed.start, ed.end].filter(Boolean).join(" – ");
+      children.push(textPara(`${head || "Degree"}${dates ? ` (${dates})` : ""}`));
+      const fieldOfStudy = ed.fieldOfStudy || ed.field || ed.studyField || ed.major || ed.specialization || ed.area;
+      if (fieldOfStudy) children.push(textPara(`Field(s) of study: ${fieldOfStudy}`));
+      const eqfLevel = ed.eqfLevel || ed.eqf || ed.levelEqf;
+      if (eqfLevel) children.push(textPara(`Level in EQF: ${eqfLevel}`));
+      if (ed.location) children.push(textPara(ed.location, { italics: true }));
+    });
+  }
+
+  const certs = getCerts(data);
+  children.push(sectionTitle("Certifications/Trainings", KYNDYRL_RED));
+  children.push(certificationsTable(certs, KYNDYRL_RED));
+
+  const skills = getSkills(data);
+  if (skills.length) {
+    children.push(sectionTitle("Skills", KYNDYRL_RED));
+    children.push(textPara(skills.join(", ")));
+  }
+
+  const langs = getLanguages(data);
+  if (langs.length) {
+    children.push(sectionTitle("Languages", KYNDYRL_RED));
+    const line = langs
+      .map((l: any) => {
+        const nm = l.name || l.language;
+        const lvl = l.levelText || l.level;
+        return lvl ? `${nm} (${lvl})` : nm;
+      })
+      .filter(Boolean)
+      .join(" · ");
+    children.push(textPara(line));
+  }
+
+  const doc = new Document({ sections: [{ children }] });
+  return { doc, name: S(c.fullName || c.name || "Candidate") };
+}
+
+function buildEuropassDocx(data: any) {
+  const c = getCandidate(data);
+  const contacts = [c.location, c.email, c.phone, c.website, c.linkedin]
+    .filter(Boolean)
+    .map(String)
+    .join(" · ");
+
+  const logo = logoParagraph(EU_LOGO, 140, 38);
+
+  const left: any[] = [
+    sectionTitle("Personal Information", EU_BLUE),
+    textPara(S(c.fullName || c.name || "Candidate")),
+  ];
+  if (c.title) left.push(textPara(S(c.title), { color: "666666" }));
+  if (contacts) left.push(textPara(contacts, { color: "666666" }));
+
+  const skills = getSkills(data);
+  if (skills.length) {
+    left.push(sectionTitle("Skills", EU_BLUE));
+    left.push(textPara(skills.join(" · ")));
+  }
+
+  const langs = getLanguages(data);
+  if (langs.length) {
+    left.push(sectionTitle("Languages", EU_BLUE));
+    left.push(
+      textPara(
+        langs
+          .map((l: any) => {
+            const nm = l.name || l.language;
+            const lvl = l.levelText || l.level;
+            return lvl ? `${nm} (${lvl})` : nm;
+          })
+          .filter(Boolean)
+          .join(" · ")
+      )
+    );
+  }
+
+  const right: any[] = [];
+  if (c.summary) {
+    right.push(sectionTitle("Profile", EU_BLUE), textPara(S(c.summary)));
+  }
+
+  const exps = getExperiences(data);
+  if (exps.length) {
+    right.push(sectionTitle("Work Experience", EU_BLUE));
+    exps.forEach((e: any) => {
+      const head = [e.title || e.role, e.company || e.employer].filter(Boolean).join(" — ");
+      const dates = [e.start, e.end].filter(Boolean).join(" – ");
+      const loc = e.location ? ` · ${e.location}` : "";
+      right.push(textPara(`${head || "Role"}${dates ? ` (${dates})` : ""}${loc}`));
+      const bullets = Array.isArray(e.bullets) ? e.bullets : [];
+      bullets.forEach((b: any) => {
+        const t = typeof b === "string" ? b : b?.text;
+        if (t) right.push(bulletPara(String(t)));
+      });
+    });
+  }
+
+  const edus = getEducation(data);
+  if (edus.length) {
+    right.push(sectionTitle("Education", EU_BLUE));
+    edus.forEach((ed: any) => {
+      const head = [ed.degree, ed.school].filter(Boolean).join(" — ");
+      const dates = [ed.start, ed.end].filter(Boolean).join(" – ");
+      right.push(textPara(`${head || "Degree"}${dates ? ` (${dates})` : ""}`));
+      const fieldOfStudy = ed.fieldOfStudy || ed.field || ed.studyField || ed.major || ed.specialization || ed.area;
+      if (fieldOfStudy) right.push(textPara(`Field(s) of study: ${fieldOfStudy}`, { color: "666666" }));
+      const eqfLevel = ed.eqfLevel || ed.eqf || ed.levelEqf;
+      if (eqfLevel) right.push(textPara(`Level in EQF: ${eqfLevel}`, { color: "666666" }));
+    });
+  }
+
+  const certs = getCerts(data);
+  right.push(sectionTitle("Certifications/Trainings", EU_BLUE));
+  right.push(certificationsTable(certs, EU_BLUE));
+
+  const bodyTable = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({ children: left, width: { size: 35, type: WidthType.PERCENTAGE } }),
+          new TableCell({ children: right, width: { size: 65, type: WidthType.PERCENTAGE } }),
+        ],
+      }),
+    ],
+  });
+
+  const children: any[] = [];
+  if (logo) children.push(logo);
+  children.push(bodyTable);
+
+  const doc = new Document({ sections: [{ children }] });
+  return { doc, name: S(c.fullName || c.name || "Candidate") };
+}
+
+function buildEuropass2Docx(data: any) {
+  const c = getCandidate(data);
+  const contacts = [
+    c.email ? `Email: ${c.email}` : "",
+    c.phone ? `Phone: ${c.phone}` : "",
+    c.location ? `Address: ${c.location}` : "",
+    c.website ? `Website: ${c.website}` : "",
+    c.linkedin ? `LinkedIn: ${c.linkedin}` : "",
+  ]
+    .filter(Boolean)
+    .join(" | ");
+
+  const logo = logoParagraph(EU_LOGO, 140, 38);
+
+  const children: any[] = [];
+  if (logo) children.push(logo);
+
+  children.push(titlePara(S(c.fullName || c.name || "Candidate"), undefined, 34));
+  if (c.title) children.push(textPara(S(c.title), { color: "666666" }));
+  if (contacts) children.push(textPara(contacts, { color: "666666" }));
+
+  if (c.summary || c.about) {
+    children.push(sectionTitle("About Me", EU_BLUE), textPara(S(c.summary || c.about)));
+  }
+
+  const edus = getEducation(data);
+  if (edus.length) {
+    children.push(sectionTitle("Education", EU_BLUE));
+    edus.forEach((ed: any) => {
+      const head = [ed.degree, ed.school].filter(Boolean).join(" — ");
+      const dates = [ed.start, ed.end].filter(Boolean).join(" – ");
+      children.push(textPara(`${head || "Qualification"}${dates ? ` (${dates})` : ""}`));
+      const fieldOfStudy = ed.fieldOfStudy || ed.field || ed.studyField || ed.major || ed.specialization || ed.area;
+      if (fieldOfStudy) children.push(textPara(`Field(s) of study: ${fieldOfStudy}`, { color: "666666" }));
+      const eqfLevel = ed.eqfLevel || ed.eqf || ed.levelEqf;
+      if (eqfLevel) children.push(textPara(`Level in EQF: ${eqfLevel}`, { color: "666666" }));
+      if (ed.location) children.push(textPara(ed.location, { italics: true }));
+    });
+  }
+
+  const certs = getCerts(data);
+  children.push(sectionTitle("Certifications/Trainings", EU_BLUE));
+  children.push(certificationsTable(certs, EU_BLUE));
+
+  const langs = getLanguages(data);
+  if (langs.length) {
+    children.push(sectionTitle("Language Skills", EU_BLUE));
+    const motherTongues = langs.filter((l: any) => /native|mother\s*tongue/i.test(S(l.levelText || l.level || "")));
+    const motherNames = motherTongues
+      .map((l: any) => S(l.name || l.language))
+      .filter(Boolean)
+      .join(", ");
+    if (motherNames) {
+      children.push(textPara(`Mother tongue(s): ${motherNames}`));
+    }
+    children.push(textPara("Other language(s):"));
+
+    const motherSet = new Set(
+      motherTongues
+        .map((l: any) => S(l.name || l.language).toUpperCase().trim())
+        .filter(Boolean)
+    );
+    const langRows = langs
+      .filter((l: any) => {
+        const nm = S(l.name || l.language).toUpperCase().trim();
+        return nm && !motherSet.has(nm);
+      })
+      .map((l: any) => {
+        const nm = S(l.name || l.language || " ");
+        const levels = splitLanguageLevels(l);
+        return new TableRow({
+          children: [
+            new TableCell({ borders: cellBorders(EU_BLUE), children: [textPara(nm)] }),
+            new TableCell({ borders: cellBorders(EU_BLUE), children: [textPara(levels.listening)] }),
+            new TableCell({ borders: cellBorders(EU_BLUE), children: [textPara(levels.reading)] }),
+            new TableCell({ borders: cellBorders(EU_BLUE), children: [textPara(levels.spokenInteraction)] }),
+            new TableCell({ borders: cellBorders(EU_BLUE), children: [textPara(levels.spokenProduction)] }),
+            new TableCell({ borders: cellBorders(EU_BLUE), children: [textPara(levels.writing)] }),
+          ],
+        });
+      });
+
+    const langTable = new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              borders: cellBorders(EU_BLUE),
+              shading: { fill: EU_BLUE },
+              children: [new Paragraph({ children: [new TextRun({ text: "Language", bold: true, color: "FFFFFF" })] })],
+            }),
+            new TableCell({
+              borders: cellBorders(EU_BLUE),
+              shading: { fill: EU_BLUE },
+              children: [new Paragraph({ children: [new TextRun({ text: "Listening", bold: true, color: "FFFFFF" })] })],
+            }),
+            new TableCell({
+              borders: cellBorders(EU_BLUE),
+              shading: { fill: EU_BLUE },
+              children: [new Paragraph({ children: [new TextRun({ text: "Reading", bold: true, color: "FFFFFF" })] })],
+            }),
+            new TableCell({
+              borders: cellBorders(EU_BLUE),
+              shading: { fill: EU_BLUE },
+              children: [new Paragraph({ children: [new TextRun({ text: "Spoken interaction", bold: true, color: "FFFFFF" })] })],
+            }),
+            new TableCell({
+              borders: cellBorders(EU_BLUE),
+              shading: { fill: EU_BLUE },
+              children: [new Paragraph({ children: [new TextRun({ text: "Spoken production", bold: true, color: "FFFFFF" })] })],
+            }),
+            new TableCell({
+              borders: cellBorders(EU_BLUE),
+              shading: { fill: EU_BLUE },
+              children: [new Paragraph({ children: [new TextRun({ text: "Writing", bold: true, color: "FFFFFF" })] })],
+            }),
+          ],
+        }),
+        ...langRows,
+      ],
+    });
+    children.push(langTable);
+  }
+
+  const skills = getSkills(data);
+  if (skills.length) {
+    children.push(sectionTitle("Skills", EU_BLUE));
+    children.push(textPara(skills.join(", ")));
+  }
+
+  const exps = getExperiences(data);
+  if (exps.length) {
+    children.push(sectionTitle("Work Experience", EU_BLUE));
+    exps.forEach((e: any) => {
+      const head = [e.title || e.role, e.company || e.employer].filter(Boolean).join(" — ");
+      const dates = [e.start, e.end].filter(Boolean).join(" – ");
+      const loc = e.location ? ` · ${e.location}` : "";
+      children.push(textPara(`${head || "Role"}${dates ? ` (${dates})` : ""}${loc}`));
+      const bullets = Array.isArray(e.bullets) ? e.bullets : [];
+      bullets.forEach((b: any) => {
+        const t = typeof b === "string" ? b : b?.text;
+        if (t) children.push(bulletPara(String(t)));
+      });
+    });
+  }
+
+  const doc = new Document({ sections: [{ children }] });
+  return { doc, name: S(c.fullName || c.name || "Candidate") };
 }
 
 /** EP Form-6 style work experience block using ep.work_experience_blocks item */
@@ -249,7 +849,13 @@ export async function POST(req: NextRequest) {
     const body = (await req.json()) as Body;
 
     const templateId = (body.templateId || body.template || "docx-ep") as string;
-    if (templateId !== "docx-ep") {
+    const supported = new Set([
+      "docx-ep",
+      "docx-kyndryl",
+      "docx-europass",
+      "docx-europass2",
+    ]);
+    if (!supported.has(templateId)) {
       return NextResponse.json(
         { error: `Unsupported DOCX template: ${templateId}` },
         { status: 400 }
@@ -284,6 +890,55 @@ export async function POST(req: NextRequest) {
     };
 
     const { data, locale } = await buildViewData(viewBody);
+
+    if (templateId !== "docx-ep") {
+      const builders: Record<string, (d: any) => { doc: Document; name: string }> = {
+        "docx-kyndryl": buildKyndrylDocx,
+        "docx-europass": buildEuropassDocx,
+        "docx-europass2": buildEuropass2Docx,
+      };
+      const builder = builders[templateId];
+      if (!builder) {
+        return NextResponse.json(
+          { error: `Unsupported DOCX template: ${templateId}` },
+          { status: 400 }
+        );
+      }
+
+      const { doc, name } = builder(data);
+      const buffer = (await Packer.toBuffer(doc)) as Buffer;
+      const templateName =
+        templateId === "docx-kyndryl"
+          ? "Kyndryl"
+          : templateId === "docx-europass"
+          ? "Europass"
+          : "Europass2";
+      const filename = buildExportFilename(templateName, name || "Candidate", "docx");
+
+      try {
+        await uploadToCvkb(
+          `exports/${filename}`,
+          buffer,
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        );
+        const origin = new URL(req.url).origin;
+        await fetch(`${origin}/api/blob/run-and-wait?timeout=120&interval=3000&forceStart=1`, {
+          method: "POST",
+        });
+        await fetch(`${origin}/api/hydrate-hybrid`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            since: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+            top: 1000,
+          }),
+        });
+      } catch (e) {
+        console.error("[export/docx] post-export sync failed:", e);
+      }
+
+      return fileResponse(buffer, filename);
+    }
     // CvData -> EP-shaped data
     const ep: any = toEpFormData(data);
     const c: any = (data as any).candidate || {};
@@ -770,7 +1425,7 @@ export async function POST(req: NextRequest) {
     try {
       await uploadToCvkb(`exports/${filename}`, buffer, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
       const origin = new URL(req.url).origin;
-      await fetch(`${origin}/api/blob/run-and-wait?timeout=120&interval=3000`, {
+      await fetch(`${origin}/api/blob/run-and-wait?timeout=120&interval=3000&forceStart=1`, {
         method: "POST",
       });
       await fetch(`${origin}/api/hydrate-hybrid`, {

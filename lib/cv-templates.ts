@@ -4,6 +4,9 @@ export type CvTemplateId =
   | "pdf-europass2"
   | "pdf-kyndryl"
   | "docx-european-parliament"
+  | "docx-kyndryl"
+  | "docx-europass"
+  | "docx-europass2"
   | "pptx-kyndryl-sm";
 
 export type CvTemplate = {
@@ -51,6 +54,33 @@ export const CV_TEMPLATES: CvTemplate[] = [
     brand: "European Parliament",
     description: "Formal DOCX layout for submissions.",
     api: "/api/export/docx",
+  },
+  {
+    id: "docx-kyndryl",
+    label: "Kyndryl (Word)",
+    kind: "docx",
+    brand: "Kyndryl",
+    description: "Kyndryl-branded DOCX layout.",
+    api: "/api/export/docx",
+    payload: { template: "docx-kyndryl" },
+  },
+  {
+    id: "docx-europass",
+    label: "Europass (Word)",
+    kind: "docx",
+    brand: "Europass",
+    description: "Europass single-column DOCX.",
+    api: "/api/export/docx",
+    payload: { template: "docx-europass" },
+  },
+  {
+    id: "docx-europass2",
+    label: "Europass 2 (Word)",
+    kind: "docx",
+    brand: "Europass",
+    description: "Europass 2 DOCX layout with header identity.",
+    api: "/api/export/docx",
+    payload: { template: "docx-europass2" },
   },
   {
     id: "pptx-kyndryl-sm",

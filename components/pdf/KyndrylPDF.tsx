@@ -49,6 +49,48 @@ const styles = StyleSheet.create({
   row: { marginBottom: 6 },
   li: { marginLeft: 10, marginTop: 2 },
   breakable: {},
+
+  // Certifications table
+  certTable: {
+    width: "100%",
+    borderWidth: 0.5,
+    borderColor: BRAND,
+    marginTop: 4,
+  },
+  certRow: {
+    flexDirection: "row",
+  },
+  certHeaderCell: {
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+    backgroundColor: BRAND,
+    borderRightWidth: 0.5,
+    borderRightColor: BRAND,
+    justifyContent: "center",
+  },
+  certHeaderText: {
+    fontSize: 9,
+    color: "#FFFFFF",
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  certCell: {
+    paddingVertical: 3,
+    paddingHorizontal: 4,
+    borderTopWidth: 0.5,
+    borderTopColor: BRAND,
+    borderRightWidth: 0.5,
+    borderRightColor: BRAND,
+    justifyContent: "center",
+  },
+  certCellText: {
+    fontSize: 9,
+    color: "#111111",
+  },
+  certColName: { width: "38%" },
+  certColIssuer: { width: "32%" },
+  certColStart: { width: "15%" },
+  certColEnd: { width: "15%" },
 });
 
 function getExperiences(c: any): any[] {
@@ -84,6 +126,12 @@ export default function KyndrylPDF({ data }: { data: CvData }) {
 
   const exps = getExperiences(c);
   const edus = getEducation(c);
+  const certs: any[] = Array.isArray(c.certifications)
+    ? c.certifications
+    : Array.isArray((c as any).certificates)
+    ? (c as any).certificates
+    : [];
+  const certRows = certs.length ? certs : [{}];
 
   return (
     <Document>
@@ -147,6 +195,16 @@ export default function KyndrylPDF({ data }: { data: CvData }) {
                   {s(ed?.degree) || "Degree"}
                   {ed?.school ? " — " + s(ed?.school) : ""}
                 </Text>
+                {ed?.fieldOfStudy || ed?.field || ed?.studyField || ed?.major || ed?.specialization || ed?.area ? (
+                  <Text style={styles.breakable}>
+                    Field(s) of study: {s(ed?.fieldOfStudy || ed?.field || ed?.studyField || ed?.major || ed?.specialization || ed?.area)}
+                  </Text>
+                ) : null}
+                {ed?.eqfLevel || ed?.eqf || ed?.levelEqf ? (
+                  <Text style={styles.breakable}>
+                    Level in EQF: {s(ed?.eqfLevel || ed?.eqf || ed?.levelEqf)}
+                  </Text>
+                ) : null}
                 {ed?.start || ed?.end ? (
                   <Text style={styles.breakable}>
                     {s(ed?.start) || "—"} – {s(ed?.end) || "—"}
@@ -157,21 +215,50 @@ export default function KyndrylPDF({ data }: { data: CvData }) {
           </View>
         ) : null}
 
-        {Array.isArray(c.certifications || (c as any).certificates) &&
-        (c.certifications || (c as any).certificates).length ? (
-          <View style={styles.section}>
-            <Text style={styles.h1}>Certifications/Trainings</Text>
-            {(c.certifications || (c as any).certificates).map((cert: any, i: number) => (
-              <Text key={i} style={styles.breakable}>
-                {s(cert.name || cert.title || "Certification")}
-                {cert.issuer || cert.org ? ` — ${s(cert.issuer || cert.org)}` : ""}
-                {cert.start || cert.end || cert.date
-                  ? ` (${[cert.start, cert.end].filter(Boolean).join(" – ") || cert.date})`
-                  : ""}
-              </Text>
+        <View style={styles.section}>
+          <Text style={styles.h1}>Certifications/Trainings</Text>
+          <View style={styles.certTable}>
+            <View style={styles.certRow}>
+              <View style={[styles.certHeaderCell, styles.certColName]}>
+                <Text style={styles.certHeaderText}>Certification Name</Text>
+              </View>
+              <View style={[styles.certHeaderCell, styles.certColIssuer]}>
+                <Text style={styles.certHeaderText}>Company/Institute</Text>
+              </View>
+              <View style={[styles.certHeaderCell, styles.certColStart]}>
+                <Text style={styles.certHeaderText}>Start Date</Text>
+              </View>
+              <View style={[styles.certHeaderCell, styles.certColEnd]}>
+                <Text style={styles.certHeaderText}>Valid Until</Text>
+              </View>
+            </View>
+
+            {certRows.map((cert: any, i: number) => (
+              <View key={i} style={styles.certRow}>
+                <View style={[styles.certCell, styles.certColName]}>
+                  <Text style={styles.certCellText}>
+                    {s(cert.name || cert.title || "") || " "}
+                  </Text>
+                </View>
+                <View style={[styles.certCell, styles.certColIssuer]}>
+                  <Text style={styles.certCellText}>
+                    {s(cert.issuer || cert.org || cert.company || "") || " "}
+                  </Text>
+                </View>
+                <View style={[styles.certCell, styles.certColStart]}>
+                  <Text style={styles.certCellText}>
+                    {s(cert.start || "") || " "}
+                  </Text>
+                </View>
+                <View style={[styles.certCell, styles.certColEnd]}>
+                  <Text style={styles.certCellText}>
+                    {s(cert.end || cert.validUntil || "") || " "}
+                  </Text>
+                </View>
+              </View>
             ))}
           </View>
-        ) : null}
+        </View>
 
         {Array.isArray(c.skills) && c.skills.length ? (
           <View style={styles.section}>
