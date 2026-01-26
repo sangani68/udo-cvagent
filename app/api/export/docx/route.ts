@@ -200,6 +200,7 @@ function logoParagraph(data: Buffer | null, width: number, height: number) {
     children: [
       new ImageRun({
         data,
+        type: "png",
         transformation: { width, height },
       }),
     ],
