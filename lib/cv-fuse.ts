@@ -151,9 +151,14 @@ function normalizeLoose(cv: PartialCV): PartialCV {
       .filter(Boolean)
   );
 
-  // Cast to PartialCV so TS doesn’t insist on required candidate.name here
+  const name =
+    (c as any).name ||
+    (c as any).fullName ||
+    (c as any).full_name ||
+    "Candidate";
+
   return {
-    candidate: { ...c, experience, education, languages, skills },
+    candidate: { ...c, name, experience, education, languages, skills },
   } as PartialCV;
 }
 
