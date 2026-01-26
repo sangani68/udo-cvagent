@@ -23,7 +23,21 @@ type Experience = {
   location?: string;
   bullets?: Bullet[];
 };
-type Education = { school?: string; degree?: string; start?: string; end?: string };
+type Education = {
+  school?: string;
+  degree?: string;
+  start?: string;
+  end?: string;
+  fieldOfStudy?: string;
+  eqfLevel?: string;
+  field?: string;
+  studyField?: string;
+  major?: string;
+  specialization?: string;
+  area?: string;
+  eqf?: string;
+  levelEqf?: string;
+};
 type Language = { language?: string; levelText?: string };
 type CvData = {
   candidate?: {
