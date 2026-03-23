@@ -221,6 +221,9 @@ function cellBorders(color: string) {
 }
 
 function certTableRows(certs: any[], color: string) {
+  const showIssuer = certs.some((cert) => !!S(cert?.issuer || cert?.org || cert?.company));
+  const showStart = certs.some((cert) => !!S(cert?.start));
+  const showEnd = certs.some((cert) => !!S(cert?.end || cert?.validUntil));
   const rows = certs.length ? certs : [{}];
   return rows.map((cert) =>
     new TableRow({
@@ -229,24 +232,39 @@ function certTableRows(certs: any[], color: string) {
           borders: cellBorders(color),
           children: [textPara(S(cert?.name || cert?.title || " "))],
         }),
-        new TableCell({
-          borders: cellBorders(color),
-          children: [textPara(S(cert?.issuer || cert?.org || cert?.company || " "))],
-        }),
-        new TableCell({
-          borders: cellBorders(color),
-          children: [textPara(S(cert?.start || " "))],
-        }),
-        new TableCell({
-          borders: cellBorders(color),
-          children: [textPara(S(cert?.end || cert?.validUntil || " "))],
-        }),
+        ...(showIssuer
+          ? [
+              new TableCell({
+                borders: cellBorders(color),
+                children: [textPara(S(cert?.issuer || cert?.org || cert?.company || " "))],
+              }),
+            ]
+          : []),
+        ...(showStart
+          ? [
+              new TableCell({
+                borders: cellBorders(color),
+                children: [textPara(S(cert?.start || " "))],
+              }),
+            ]
+          : []),
+        ...(showEnd
+          ? [
+              new TableCell({
+                borders: cellBorders(color),
+                children: [textPara(S(cert?.end || cert?.validUntil || " "))],
+              }),
+            ]
+          : []),
       ],
     })
   );
 }
 
 function certificationsTable(certs: any[], color: string) {
+  const showIssuer = certs.some((cert) => !!S(cert?.issuer || cert?.org || cert?.company));
+  const showStart = certs.some((cert) => !!S(cert?.start));
+  const showEnd = certs.some((cert) => !!S(cert?.end || cert?.validUntil));
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     rows: [
@@ -267,51 +285,63 @@ function certificationsTable(certs: any[], color: string) {
             ],
             shading: { fill: color },
           }),
-          new TableCell({
-            borders: cellBorders(color),
-            children: [
-              new Paragraph({
-                children: [
-                  new TextRun({
-                    text: "Company/Institute",
-                    bold: true,
-                    color: "FFFFFF",
-                  }),
-                ],
-              }),
-            ],
-            shading: { fill: color },
-          }),
-          new TableCell({
-            borders: cellBorders(color),
-            children: [
-              new Paragraph({
-                children: [
-                  new TextRun({
-                    text: "Start Date",
-                    bold: true,
-                    color: "FFFFFF",
-                  }),
-                ],
-              }),
-            ],
-            shading: { fill: color },
-          }),
-          new TableCell({
-            borders: cellBorders(color),
-            children: [
-              new Paragraph({
-                children: [
-                  new TextRun({
-                    text: "Valid Until",
-                    bold: true,
-                    color: "FFFFFF",
-                  }),
-                ],
-              }),
-            ],
-            shading: { fill: color },
-          }),
+          ...(showIssuer
+            ? [
+                new TableCell({
+                  borders: cellBorders(color),
+                  children: [
+                    new Paragraph({
+                      children: [
+                        new TextRun({
+                          text: "Company/Institute",
+                          bold: true,
+                          color: "FFFFFF",
+                        }),
+                      ],
+                    }),
+                  ],
+                  shading: { fill: color },
+                }),
+              ]
+            : []),
+          ...(showStart
+            ? [
+                new TableCell({
+                  borders: cellBorders(color),
+                  children: [
+                    new Paragraph({
+                      children: [
+                        new TextRun({
+                          text: "Start Date",
+                          bold: true,
+                          color: "FFFFFF",
+                        }),
+                      ],
+                    }),
+                  ],
+                  shading: { fill: color },
+                }),
+              ]
+            : []),
+          ...(showEnd
+            ? [
+                new TableCell({
+                  borders: cellBorders(color),
+                  children: [
+                    new Paragraph({
+                      children: [
+                        new TextRun({
+                          text: "Valid Until",
+                          bold: true,
+                          color: "FFFFFF",
+                        }),
+                      ],
+                    }),
+                  ],
+                  shading: { fill: color },
+                }),
+              ]
+            : []),
         ],
       }),
       ...certTableRows(certs, color),

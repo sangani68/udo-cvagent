@@ -136,6 +136,33 @@ export default function KyndrylPDF({ data }: { data: CvData }) {
     ? (c as any).certificates
     : [];
   const certRows = certs.length ? certs : [{}];
+  const showCertIssuer = certs.some((cert: any) => !!s(cert?.issuer || cert?.org || cert?.company).trim());
+  const showCertStart = certs.some((cert: any) => !!s(cert?.start).trim());
+  const showCertEnd = certs.some((cert: any) => !!s(cert?.end || cert?.validUntil).trim());
+  const certNameWidth =
+    showCertIssuer && showCertStart && showCertEnd
+      ? "38%"
+      : showCertIssuer && (showCertStart || showCertEnd)
+      ? "48%"
+      : showCertIssuer
+      ? "68%"
+      : "100%";
+  const certIssuerWidth =
+    showCertIssuer && showCertStart && showCertEnd
+      ? "32%"
+      : showCertIssuer && (showCertStart || showCertEnd)
+      ? "32%"
+      : showCertIssuer
+      ? "32%"
+      : "0%";
+  const certDateWidth =
+    showCertIssuer && showCertStart && showCertEnd
+      ? "15%"
+      : showCertStart && showCertEnd
+      ? "20%"
+      : showCertIssuer
+      ? "20%"
+      : "0%";
   const langs = getLanguages(c);
 
   return (
@@ -224,42 +251,64 @@ export default function KyndrylPDF({ data }: { data: CvData }) {
           <Text style={styles.h1}>Certifications/Trainings</Text>
           <View style={styles.certTable}>
             <View style={styles.certRow} wrap={false}>
-              <View style={[styles.certHeaderCell, styles.certColName]}>
+              <View style={[styles.certHeaderCell, { width: certNameWidth, flexShrink: 0 }]}>
                 <Text style={styles.certHeaderText}>Certification Name</Text>
               </View>
-              <View style={[styles.certHeaderCell, styles.certColIssuer]}>
-                <Text style={styles.certHeaderText}>Company/Institute</Text>
-              </View>
-              <View style={[styles.certHeaderCell, styles.certColStart]}>
-                <Text style={styles.certHeaderText}>Start Date</Text>
-              </View>
-              <View style={[styles.certHeaderCell, styles.certColEnd]}>
-                <Text style={styles.certHeaderText}>Valid Until</Text>
-              </View>
+              {showCertIssuer ? (
+                <View style={[styles.certHeaderCell, { width: certIssuerWidth, flexShrink: 0 }]}>
+                  <Text style={styles.certHeaderText}>Company/Institute</Text>
+                </View>
+              ) : null}
+              {showCertStart ? (
+                <View style={[styles.certHeaderCell, { width: certDateWidth, flexShrink: 0 }]}>
+                  <Text style={styles.certHeaderText}>Start Date</Text>
+                </View>
+              ) : null}
+              {showCertEnd ? (
+                <View
+                  style={[
+                    styles.certHeaderCell,
+                    { width: certDateWidth, flexShrink: 0, borderRightWidth: 0 },
+                  ]}
+                >
+                  <Text style={styles.certHeaderText}>Valid Until</Text>
+                </View>
+              ) : null}
             </View>
 
             {certRows.map((cert: any, i: number) => (
               <View key={i} style={styles.certRow} wrap={false}>
-                <View style={[styles.certCell, styles.certColName]}>
+                <View style={[styles.certCell, { width: certNameWidth, flexShrink: 0 }]}>
                   <Text style={styles.certCellText}>
                     {s(cert.name || cert.title || "") || " "}
                   </Text>
                 </View>
-                <View style={[styles.certCell, styles.certColIssuer]}>
-                  <Text style={styles.certCellText}>
-                    {s(cert.issuer || cert.org || cert.company || "") || " "}
-                  </Text>
-                </View>
-                <View style={[styles.certCell, styles.certColStart]}>
-                  <Text style={styles.certCellText}>
-                    {s(cert.start || "") || " "}
-                  </Text>
-                </View>
-                <View style={[styles.certCell, styles.certColEnd]}>
-                  <Text style={styles.certCellText}>
-                    {s(cert.end || cert.validUntil || "") || " "}
-                  </Text>
-                </View>
+                {showCertIssuer ? (
+                  <View style={[styles.certCell, { width: certIssuerWidth, flexShrink: 0 }]}>
+                    <Text style={styles.certCellText}>
+                      {s(cert.issuer || cert.org || cert.company || "") || " "}
+                    </Text>
+                  </View>
+                ) : null}
+                {showCertStart ? (
+                  <View style={[styles.certCell, { width: certDateWidth, flexShrink: 0 }]}>
+                    <Text style={styles.certCellText}>
+                      {s(cert.start || "") || " "}
+                    </Text>
+                  </View>
+                ) : null}
+                {showCertEnd ? (
+                  <View
+                    style={[
+                      styles.certCell,
+                      { width: certDateWidth, flexShrink: 0, borderRightWidth: 0 },
+                    ]}
+                  >
+                    <Text style={styles.certCellText}>
+                      {s(cert.end || cert.validUntil || "") || " "}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
             ))}
           </View>

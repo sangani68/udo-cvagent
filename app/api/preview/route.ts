@@ -92,6 +92,17 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    if (template === "pptx-cv-template") {
+      const html = await buildHtmlPreview(data, template);
+      return new Response(html, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          "Cache-Control": "no-store",
+        },
+      });
+    }
+
     const tpl = mapTemplateId(template);
     const load = loaders[tpl];
     if (!load) {

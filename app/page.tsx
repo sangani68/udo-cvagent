@@ -58,9 +58,22 @@ type TemplateId =
   | "docx-ep-template"
   | "docx-non-key-personnel"
   | "pptx-kyndryl-sm"
-  | "pptx-kyndryl-sm-anon";
+  | "pptx-kyndryl-sm-anon"
+  | "pptx-cv-template";
 
 const DEFAULT_TEMPLATE: TemplateId = "pdf-kyndryl";
+
+type TemplateFormat = "pdf" | "docx";
+type BaseTemplateId =
+  | "kyndryl"
+  | "europass"
+  | "europass2"
+  | "european-parliament"
+  | "european-parliament-template"
+  | "non-key-personnel"
+  | "pptx-kyndryl-sm"
+  | "pptx-kyndryl-sm-anon"
+  | "pptx-cv-template";
 
 const TEMPLATE_META: Record<
   TemplateId,
@@ -80,13 +93,107 @@ const TEMPLATE_META: Record<
     kind: "pptx",
     label: "Kyndryl SM PPTX (Anonymized)",
   },
+  "pptx-cv-template": { kind: "pptx", label: "PPT CV Template" },
 };
+
+const TEMPLATE_OPTIONS: Array<{
+  id: BaseTemplateId;
+  label: string;
+  formats?: TemplateFormat[];
+  templates?: Partial<Record<TemplateFormat, TemplateId>>;
+  template?: TemplateId;
+}> = [
+  {
+    id: "kyndryl",
+    label: "Kyndryl",
+    formats: ["pdf", "docx"],
+    templates: { pdf: "pdf-kyndryl", docx: "docx-kyndryl" },
+  },
+  {
+    id: "europass",
+    label: "Europass",
+    formats: ["pdf", "docx"],
+    templates: { pdf: "pdf-europass", docx: "docx-europass" },
+  },
+  {
+    id: "europass2",
+    label: "Europass 2",
+    formats: ["pdf", "docx"],
+    templates: { pdf: "pdf-europass2", docx: "docx-europass2" },
+  },
+  {
+    id: "european-parliament",
+    label: "European Parliament",
+    formats: ["docx"],
+    templates: { docx: "docx-ep" },
+  },
+  {
+    id: "european-parliament-template",
+    label: "European Parliament Template",
+    formats: ["docx"],
+    templates: { docx: "docx-ep-template" },
+  },
+  {
+    id: "non-key-personnel",
+    label: "Non-key Personnel Table",
+    formats: ["docx"],
+    templates: { docx: "docx-non-key-personnel" },
+  },
+  {
+    id: "pptx-kyndryl-sm",
+    label: "Kyndryl SM PPTX",
+    template: "pptx-kyndryl-sm",
+  },
+  {
+    id: "pptx-kyndryl-sm-anon",
+    label: "Kyndryl SM PPTX (Anonymized)",
+    template: "pptx-kyndryl-sm-anon",
+  },
+  {
+    id: "pptx-cv-template",
+    label: "PPT CV Template",
+    template: "pptx-cv-template",
+  },
+];
+
+function deriveTemplateUiState(template: TemplateId): {
+  baseTemplateId: BaseTemplateId;
+  format: TemplateFormat | null;
+} {
+  for (const option of TEMPLATE_OPTIONS) {
+    if (option.template === template) {
+      return { baseTemplateId: option.id, format: null };
+    }
+    if (option.templates) {
+      for (const format of option.formats || []) {
+        if (option.templates[format] === template) {
+          return { baseTemplateId: option.id, format };
+        }
+      }
+    }
+  }
+  return { baseTemplateId: "kyndryl", format: "pdf" };
+}
+
+function resolveTemplateId(
+  baseTemplateId: BaseTemplateId,
+  format: TemplateFormat | null
+): TemplateId {
+  const option = TEMPLATE_OPTIONS.find((entry) => entry.id === baseTemplateId);
+  if (!option) return DEFAULT_TEMPLATE;
+  if (option.template) return option.template;
+  if (!format || !option.templates?.[format]) {
+    return option.templates?.[option.formats?.[0] || "pdf"] || DEFAULT_TEMPLATE;
+  }
+  return option.templates[format] || DEFAULT_TEMPLATE;
+}
 
 /* ─────────────────────────────────────────────────────────────
    Page
    ───────────────────────────────────────────────────────────── */
 export default function Page() {
   const router = useRouter();
+  const initialTemplateUiState = deriveTemplateUiState(DEFAULT_TEMPLATE);
 
   // ── Simple client-side auth guard ──────────────────────────
   useEffect(() => {
@@ -99,6 +206,12 @@ export default function Page() {
 
   const [cv, setCv] = useState<CVJson | null>(null);
   const [template, setTemplate] = useState<TemplateId>(DEFAULT_TEMPLATE);
+  const [baseTemplateId, setBaseTemplateId] = useState<BaseTemplateId>(
+    initialTemplateUiState.baseTemplateId
+  );
+  const [templateFormat, setTemplateFormat] = useState<TemplateFormat | null>(
+    initialTemplateUiState.format
+  );
   const [locale, setLocale] = useState<string>("en");
   const [maskPolicy, setMaskPolicy] = useState<MaskPolicy>({
     email: false,
@@ -113,6 +226,14 @@ export default function Page() {
   const urlRef = useRef<string | null>(null);
   const [searchRefresh, setSearchRefresh] = useState<number>(0);
   const [searchAutoQuery, setSearchAutoQuery] = useState<string>("");
+
+  const selectedTemplateOption =
+    TEMPLATE_OPTIONS.find((option) => option.id === baseTemplateId) ||
+    TEMPLATE_OPTIONS[0];
+
+  useEffect(() => {
+    setTemplate(resolveTemplateId(baseTemplateId, templateFormat));
+  }, [baseTemplateId, templateFormat]);
 
   // Cleanup preview object URL
   useEffect(() => {
@@ -230,7 +351,8 @@ export default function Page() {
         template === "docx-ep-template" ||
         template === "docx-non-key-personnel" ||
         template === "pptx-kyndryl-sm" ||
-        template === "pptx-kyndryl-sm-anon"
+        template === "pptx-kyndryl-sm-anon" ||
+        template === "pptx-cv-template"
       ) {
         const html = await res.text().catch(() => "");
         const page = html?.trim()
@@ -334,18 +456,47 @@ export default function Page() {
       <div className="mb-3 flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">CV Agent</h1>
         <div className="flex items-center gap-2">
-          <select
-            className="rounded-lg border bg-white px-3 py-2 text-sm"
-            value={template}
-            onChange={(e) => setTemplate(e.target.value as TemplateId)}
-            disabled={busy}
-          >
-            {Object.entries(TEMPLATE_META).map(([id, meta]) => (
-              <option key={id} value={id}>
-                {meta.label}
-              </option>
-            ))}
-          </select>
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <span>Template</span>
+            <select
+              className="rounded-lg border bg-white px-3 py-2 text-sm"
+              value={baseTemplateId}
+              onChange={(e) => {
+                const nextBaseTemplateId = e.target.value as BaseTemplateId;
+                const nextOption = TEMPLATE_OPTIONS.find(
+                  (option) => option.id === nextBaseTemplateId
+                );
+                setBaseTemplateId(nextBaseTemplateId);
+                setTemplateFormat(nextOption?.formats?.[0] || null);
+              }}
+              disabled={busy}
+            >
+              {TEMPLATE_OPTIONS.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {selectedTemplateOption.formats?.length ? (
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <span>Format</span>
+              <select
+                className="rounded-lg border bg-white px-3 py-2 text-sm"
+                value={templateFormat || selectedTemplateOption.formats[0]}
+                onChange={(e) =>
+                  setTemplateFormat(e.target.value as TemplateFormat)
+                }
+                disabled={busy}
+              >
+                {selectedTemplateOption.formats.map((format) => (
+                  <option key={format} value={format}>
+                    {format.toUpperCase()}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           <LanguagePicker
             {...({ value: locale, onChange: setLocale } as any)}
           />

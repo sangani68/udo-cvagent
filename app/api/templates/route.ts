@@ -16,7 +16,8 @@ type TemplateId =
   | "docx-ep-template"
   | "docx-non-key-personnel"
   | "pptx-kyndryl-sm"
-  | "pptx-kyndryl-sm-anon";
+  | "pptx-kyndryl-sm-anon"
+  | "pptx-cv-template";
 
 type TemplateEntry = {
   id: TemplateId;          // <- used by the UI
@@ -169,6 +170,18 @@ const templates: TemplateEntry[] = [
     id: "pptx-kyndryl-sm-anon",
     key: "pptx-kyndryl-sm-anon",
     label: "Kyndryl Slide Master (PPTX, Anonymized)",
+    kind: "pptx",
+    ext: "pptx",
+    previewable: false,
+    export: {
+      path: "/api/export/pptx",
+      method: "POST",
+    },
+  },
+  {
+    id: "pptx-cv-template",
+    key: "pptx-cv-template",
+    label: "PPT CV Template (PPTX)",
     kind: "pptx",
     ext: "pptx",
     previewable: false,

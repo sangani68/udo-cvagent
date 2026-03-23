@@ -7,6 +7,7 @@ import type { MaskPolicy } from "@/lib/mask";
 import { buildViewData } from "@/lib/preview-pipeline";
 import { buildKyndrylSMView } from "@/lib/kyndryl-sm";
 import { makeKyndrylSM } from "@/lib/pptx/KyndrylSM";
+import { makePptCvTemplate } from "@/lib/pptx/PptCvTemplate";
 import { uploadToCvkb } from "@/lib/azure";
 import { buildExportFilename } from "@/lib/export-utils";
 import { anonymizeKyndrylSMView } from "@/lib/workerProfiles";
@@ -20,6 +21,15 @@ type Payload = {
   maskPersonal?: boolean;
   maskPolicy?: MaskPolicy;
 };
+
+function stripTemplateWords(text: string) {
+  return String(text ?? "")
+    .replace(/\bppt\s*cv\s*template\b/gi, "")
+    .replace(/\bpptcvtemplate\b/gi, "")
+    .replace(/\btemplate\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -47,14 +57,21 @@ export async function POST(req: NextRequest) {
 
     const { data } = await buildViewData(viewBody);
 
-    const baseView = await buildKyndrylSMView(data, targetLocale);
     const anonymized = templateId === "pptx-kyndryl-sm-anon";
-    const view = anonymized ? anonymizeKyndrylSMView(baseView) : baseView;
-    const bytes = (await makeKyndrylSM(view)) as Buffer;
+    const isCustomTemplate = templateId === "pptx-cv-template";
+    const bytes = isCustomTemplate
+      ? ((await makePptCvTemplate(data)) as Buffer)
+      : ((await makeKyndrylSM(
+          anonymized
+            ? anonymizeKyndrylSMView(await buildKyndrylSMView(data, targetLocale))
+            : await buildKyndrylSMView(data, targetLocale)
+        )) as Buffer);
 
     const filename = buildExportFilename(
-      anonymized ? "KyndrylSM_Anonymized" : "KyndrylSM",
-      anonymized ? "AnonymousProfile" : data?.candidate?.name || "Candidate",
+      isCustomTemplate ? "CV" : anonymized ? "KyndrylSM_Anonymized" : "KyndrylSM",
+      anonymized
+        ? "AnonymousProfile"
+        : stripTemplateWords(String(data?.candidate?.fullName || data?.candidate?.name || "Candidate")),
       "pptx"
     );
 

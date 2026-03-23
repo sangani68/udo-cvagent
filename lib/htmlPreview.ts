@@ -11,6 +11,7 @@ const COLORS: Record<string, { accent: string }> = {
   "docx-europass": { accent: "#0A66CC" },
   "docx-europass2": { accent: "#003399" },
   "pptx-kyndryl-sm": { accent: "#FF462D" },
+  "pptx-cv-template": { accent: "#FF462D" },
 };
 
 const esc = (s: any) =>
@@ -287,6 +288,9 @@ function defaultHtml(raw: CvData, accent: string) {
     const txt = v == null ? "" : String(v);
     return txt.trim() ? esc(txt) : "&nbsp;";
   };
+  const showCertIssuer = certList.some((cert: any) => String(cert?.issuer || cert?.org || cert?.company || "").trim());
+  const showCertStart = certList.some((cert: any) => String(cert?.start || "").trim());
+  const showCertEnd = certList.some((cert: any) => String(cert?.end || cert?.validUntil || "").trim());
 
   const certifications =
     `<section><h2>Certifications/Trainings</h2>
@@ -294,9 +298,9 @@ function defaultHtml(raw: CvData, accent: string) {
         <thead>
           <tr>
             <th>Certification Name</th>
-            <th>Company/Institute</th>
-            <th>Start Date</th>
-            <th>Valid Until</th>
+            ${showCertIssuer ? "<th>Company/Institute</th>" : ""}
+            ${showCertStart ? "<th>Start Date</th>" : ""}
+            ${showCertEnd ? "<th>Valid Until</th>" : ""}
           </tr>
         </thead>
         <tbody>
@@ -304,9 +308,9 @@ function defaultHtml(raw: CvData, accent: string) {
             .map(
               (cert: any) => `<tr>
                 <td>${certCell(cert.name || cert.title || "")}</td>
-                <td>${certCell(cert.issuer || cert.org || cert.company || "")}</td>
-                <td>${certCell(cert.start || "")}</td>
-                <td>${certCell(cert.end || cert.validUntil || "")}</td>
+                ${showCertIssuer ? `<td>${certCell(cert.issuer || cert.org || cert.company || "")}</td>` : ""}
+                ${showCertStart ? `<td>${certCell(cert.start || "")}</td>` : ""}
+                ${showCertEnd ? `<td>${certCell(cert.end || cert.validUntil || "")}</td>` : ""}
               </tr>`
             )
             .join("")}

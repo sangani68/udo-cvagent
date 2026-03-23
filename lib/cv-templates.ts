@@ -10,7 +10,8 @@ export type CvTemplateId =
   | "docx-ep-template"
   | "docx-non-key-personnel"
   | "pptx-kyndryl-sm"
-  | "pptx-kyndryl-sm-anon";
+  | "pptx-kyndryl-sm-anon"
+  | "pptx-cv-template";
 
 export type CvTemplate = {
   id: CvTemplateId;
@@ -117,6 +118,14 @@ export const CV_TEMPLATES: CvTemplate[] = [
     kind: "pptx",
     brand: "Kyndryl",
     description: "Seller-ready slide without employee name or photo.",
+    api: "/api/export/pptx",
+  },
+  {
+    id: "pptx-cv-template",
+    label: "PPT CV Template (PowerPoint)",
+    kind: "pptx",
+    brand: "Kyndryl",
+    description: "Template-preserving single-slide export using the provided PPT layout.",
     api: "/api/export/pptx",
   },
 ];
