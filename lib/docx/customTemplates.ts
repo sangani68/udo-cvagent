@@ -13,11 +13,35 @@ type NonKeySection = {
   relevantCertifications: CertRow[];
 };
 
+type EpWorkBlock = {
+  project_name?: string;
+  employer?: string;
+  dates?: string;
+  man_days?: string;
+  client?: string;
+  project_size?: string;
+  project_description?: string;
+  roles_responsibilities?: string[];
+  technologies?: string[];
+};
+
 const NS_DECL =
   'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
 
 function S(v: any) {
   return String(v ?? "").trim();
+}
+
+function A<T = any>(v: any): T[] {
+  return Array.isArray(v) ? v : [];
+}
+
+function firstNonEmpty(...vals: any[]) {
+  for (const val of vals) {
+    const next = S(val);
+    if (next) return next;
+  }
+  return "";
 }
 
 function esc(text: string) {
@@ -159,7 +183,7 @@ function setCellLinesInRow(rowXml: string, cellIndex: number, lines: string[]) {
 }
 
 function cloneRowWithValues(rowXml: string, values: string[]) {
-  let next = rowXml;
+  let next = sanitizeClonedWordXml(rowXml);
   values.forEach((value, index) => {
     next = setCellLinesInRow(next, index, [value]);
   });
@@ -203,6 +227,213 @@ function getLanguages(data: CvData) {
   return Array.isArray(c.languages) ? c.languages : [];
 }
 
+function getAllCertRows(data: CvData, limit = 6): CertRow[] {
+  const c: any = data?.candidate || {};
+  const certs = Array.isArray(c.certifications)
+    ? c.certifications
+    : Array.isArray(c.certificates)
+    ? c.certificates
+    : [];
+  return certs.slice(0, limit).map((cert: any) => ({
+    issuer: S(cert?.issuer || cert?.org || cert?.company || cert?.institute),
+    name: S(cert?.name || cert?.title || cert?.certification),
+    validityDate: S(cert?.end || cert?.validUntil || cert?.date || cert?.start),
+  }));
+}
+
+function getEducation(data: CvData) {
+  const c: any = data?.candidate || {};
+  return Array.isArray(c.education) ? c.education : [];
+}
+
+function buildCandidateFactSheet(data: CvData) {
+  const c: any = data?.candidate || {};
+  return {
+    name: firstNonEmpty(c.fullName, c.name),
+    title: S(c.title),
+    summary: S(c.summary),
+    contacts: {
+      location: S(c.location),
+      email: S(c.email),
+      phone: S(c.phone),
+      linkedin: S(c.linkedin),
+    },
+    skills: A(c.skills).map(S).filter(Boolean),
+    languages: getLanguages(data).map((l: any) => ({
+      name: S(l?.name || l?.language),
+      level: S(l?.levelText || l?.level),
+    })),
+    education: getEducation(data).map((ed: any) => ({
+      degree: S(ed?.degree),
+      school: S(ed?.school),
+      fieldOfStudy: firstNonEmpty(ed?.fieldOfStudy, ed?.field, ed?.studyField, ed?.major, ed?.specialization),
+      eqfLevel: firstNonEmpty(ed?.eqfLevel, ed?.eqf, ed?.levelEqf),
+      start: S(ed?.start),
+      end: S(ed?.end),
+      location: S(ed?.location),
+    })),
+    certifications: getAllCertRows(data, 12),
+    experiences: A(c.experiences).map((exp: any) => ({
+      title: firstNonEmpty(exp?.title, exp?.role),
+      company: firstNonEmpty(exp?.company, exp?.employer),
+      client: S(exp?.client),
+      start: S(exp?.start),
+      end: S(exp?.end),
+      location: S(exp?.location),
+      description: firstNonEmpty(exp?.description, exp?.summary),
+      bullets: A(exp?.bullets).map((b: any) => S(typeof b === "string" ? b : b?.text)).filter(Boolean),
+      technologies: A(exp?.technologies || exp?.tools).map((t: any) => S(typeof t === "string" ? t : t?.name)).filter(Boolean),
+    })),
+  };
+}
+
+async function callAzureOpenAiJson(system: string, payload: any) {
+  const endpoint = (process.env.AZURE_OPENAI_ENDPOINT || "").replace(/\/+$/, "");
+  const apiKey = (process.env.AZURE_OPENAI_API_KEY || process.env.AZURE_OPENAI_KEY || "").trim();
+  const deployment =
+    (process.env.AZURE_OPENAI_CHAT_DEPLOYMENT || process.env.AZURE_OPENAI_DEPLOYMENT || "").trim();
+  const apiVersion = (process.env.AZURE_OPENAI_CHAT_API_VERSION || "2024-10-01-preview").trim();
+
+  if (!endpoint || !apiKey || !deployment) return null;
+
+  try {
+    const res = await fetch(
+      `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "api-key": apiKey },
+        body: JSON.stringify({
+          response_format: { type: "json_object" },
+          temperature: 0.2,
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: JSON.stringify(payload) },
+          ],
+        }),
+      }
+    );
+    if (!res.ok) return null;
+    const json = await res.json().catch(() => null);
+    const content = json?.choices?.[0]?.message?.content;
+    if (!content) return null;
+    return JSON.parse(content);
+  } catch {
+    return null;
+  }
+}
+
+async function buildEuropeanParliamentEnrichment(data: CvData, ep: any) {
+  const parsed = await callAzureOpenAiJson(
+    "Return strict JSON with { summary, specialised_expertise, current_function, profile_level, trainings: [{ title, provider, hours, certificate, date }], software_expertise: [{ tool, years, description }], work_experience_blocks: [{ project_name, employer, dates, man_days, client, project_size, project_description, roles_responsibilities, technologies }] }. Use only facts present in the supplied candidate data. Prefer complete, concise field values suitable for an official European Parliament CV form.",
+    {
+      existing_ep_fields: ep,
+      candidate: buildCandidateFactSheet(data),
+    }
+  );
+  return parsed && typeof parsed === "object" ? parsed : null;
+}
+
+function mergeEpData(ep: any, enriched: any, data: CvData) {
+  const candidate = buildCandidateFactSheet(data);
+  const merged: any = { ...ep };
+  merged.summary = firstNonEmpty(enriched?.summary, ep?.summary, candidate.summary);
+  merged.specialised_expertise = firstNonEmpty(
+    enriched?.specialised_expertise,
+    ep?.specialised_expertise,
+    candidate.summary,
+    candidate.skills.join(", ")
+  );
+  merged.current_function = firstNonEmpty(enriched?.current_function, ep?.current_function, candidate.title);
+  merged.profile_level = firstNonEmpty(enriched?.profile_level, ep?.profile_level);
+
+  const llmTrainings = A(enriched?.trainings).filter((x: any) => S(x?.title) || S(x?.provider));
+  const detTrainings = A(ep?.trainings).filter((x: any) => S(x?.title) || S(x?.provider));
+  const fallbackTrainings = candidate.certifications.map((cert) => ({
+    title: S(cert.name),
+    provider: S(cert.issuer),
+    hours: "",
+    certificate: "",
+    date: S(cert.validityDate),
+  }));
+  merged.trainings = llmTrainings.length ? llmTrainings : detTrainings.length ? detTrainings : fallbackTrainings;
+
+  const llmSoftware = A(enriched?.software_expertise).filter((x: any) => S(x?.tool));
+  const detSoftware = A(ep?.software_expertise).filter((x: any) => S(x?.tool));
+  const fallbackSoftware = candidate.skills.slice(0, 12).map((skill) => ({
+    tool: skill,
+    years: "",
+    description: "",
+  }));
+  merged.software_expertise = llmSoftware.length ? llmSoftware : detSoftware.length ? detSoftware : fallbackSoftware;
+
+  const llmWork = A(enriched?.work_experience_blocks).filter(
+    (x: any) => S(x?.project_name) || S(x?.employer) || S(x?.project_description)
+  );
+  merged.work_experience_blocks = llmWork.length ? llmWork : A(ep?.work_experience_blocks);
+  return merged;
+}
+
+function fillEpWorkTable(tableXml: string, work: EpWorkBlock) {
+  const dates = S(work?.dates).split(" – ");
+  let next = tableXml;
+  next = setCellLinesInTable(next, 1, 1, [S(work?.project_name)]);
+  next = setCellLinesInTable(next, 2, 1, [S(work?.employer)]);
+  next = setCellLinesInTable(
+    next,
+    3,
+    1,
+    [`Start (dd/mm/yyyy): ${dates[0] || ""}   End: (dd/mm/yyyy): ${dates[1] || ""}   Effective number of man-days worked on the project: ${S(work?.man_days)}`]
+  );
+  next = setCellLinesInTable(next, 4, 1, [S(work?.client)]);
+  next = setCellLinesInTable(next, 5, 1, [S(work?.project_size)]);
+  next = setCellLinesInTable(next, 6, 0, ["Project description:", S(work?.project_description)]);
+  next = setCellLinesInTable(
+    next,
+    7,
+    0,
+    ["Employee’s roles & responsibilities in the project:", ...A(work?.roles_responsibilities).map(S)]
+  );
+  next = setCellLinesInTable(
+    next,
+    8,
+    0,
+    ["Technologies and methodologies used by the employee in the project:", ...A(work?.technologies).map(S)]
+  );
+  return next;
+}
+
+function sanitizeClonedWordXml(xml: string) {
+  return xml
+    .replace(/\s+w14:paraId="[^"]*"/g, "")
+    .replace(/\s+w14:textId="[^"]*"/g, "")
+    .replace(/\s+w:rsidR="[^"]*"/g, "")
+    .replace(/\s+w:rsidRPr="[^"]*"/g, "")
+    .replace(/\s+w:rsidRDefault="[^"]*"/g, "")
+    .replace(/\s+w:rsidP="[^"]*"/g, "")
+    .replace(/\s+w:rsidTr="[^"]*"/g, "");
+}
+
+function sanitizeGeneratedWorkTableXml(xml: string) {
+  return sanitizeClonedWordXml(xml)
+    .replace(/<w:r\b[\s\S]*?<w:footnoteReference\b[\s\S]*?<\/w:r>/g, "")
+    .replace(/<w:footnoteReference\b[^/]*\/>/g, "")
+    .replace(/<w:proofErr\b[^/]*\/>/g, "")
+    .replace(/<w:proofErr\b[\s\S]*?<\/w:proofErr>/g, "");
+}
+
+function sanitizeFinalDocumentXml(xml: string) {
+  return xml
+    .replace(/\s+w14:paraId="[^"]*"/g, "")
+    .replace(/\s+w14:textId="[^"]*"/g, "")
+    .replace(/\s+w:rsidR="[^"]*"/g, "")
+    .replace(/\s+w:rsidRPr="[^"]*"/g, "")
+    .replace(/\s+w:rsidRDefault="[^"]*"/g, "")
+    .replace(/\s+w:rsidP="[^"]*"/g, "")
+    .replace(/\s+w:rsidTr="[^"]*"/g, "")
+    .replace(/<w:proofErr\b[^/]*\/>/g, "")
+    .replace(/<w:proofErr\b[\s\S]*?<\/w:proofErr>/g, "");
+}
+
 async function buildNonKeySections(data: CvData): Promise<NonKeySection[]> {
   const categories = [
     "Enterprise Architecture",
@@ -218,87 +449,93 @@ async function buildNonKeySections(data: CvData): Promise<NonKeySection[]> {
   const summary = S(c.summary || "");
   const skills = Array.isArray(c.skills) ? c.skills.map(S).filter(Boolean) : [];
   const exps = Array.isArray(c.experiences) ? c.experiences : [];
-  const certs = topCertRows(data, 3);
+  const certs = getAllCertRows(data, 12);
+  const education = getEducation(data);
+  const languages = getLanguages(data);
 
-  const endpoint = (process.env.AZURE_OPENAI_ENDPOINT || "").replace(/\/+$/, "");
-  const apiKey = (process.env.AZURE_OPENAI_API_KEY || process.env.AZURE_OPENAI_KEY || "").trim();
-  const deployment =
-    (process.env.AZURE_OPENAI_CHAT_DEPLOYMENT || process.env.AZURE_OPENAI_DEPLOYMENT || "").trim();
-  const apiVersion = (process.env.AZURE_OPENAI_CHAT_API_VERSION || "2024-10-01-preview").trim();
-
-  if (endpoint && apiKey && deployment) {
-    try {
-      const res = await fetch(
-        `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "api-key": apiKey },
-          body: JSON.stringify({
-            response_format: { type: "json_object" },
-            temperature: 0.2,
-            messages: [
-              {
-                role: "system",
-                content:
-                  "Return strict JSON with { sections: [{ category, profileDescription, relevantExperience, requirementLink, relevantCertifications: [{ issuer, name, validityDate }] }] }. Use only supplied CV facts. Keep profileDescription and relevantExperience concise. requirementLink may be empty.",
-              },
-              {
-                role: "user",
-                content: JSON.stringify({
-                  categories,
-                  candidate: {
-                    name: c.name,
-                    title: c.title,
-                    summary,
-                    skills,
-                    experiences: exps,
-                    certifications: certs,
-                  },
-                }),
-              },
-            ],
-          }),
-        }
-      );
-      if (res.ok) {
-        const json = await res.json().catch(() => ({}));
-        const content = json?.choices?.[0]?.message?.content || "{}";
-        const parsed = JSON.parse(content);
-        const sections = Array.isArray(parsed?.sections) ? parsed.sections : [];
-        if (sections.length === categories.length) {
-          return sections.map((section: any, index: number) => ({
-            category: categories[index],
-            profileDescription: S(section?.profileDescription || summary),
-            relevantExperience: S(section?.relevantExperience),
-            requirementLink: S(section?.requirementLink),
-            relevantCertifications: Array.isArray(section?.relevantCertifications)
-              ? section.relevantCertifications.slice(0, 3).map((cert: any) => ({
-                  issuer: S(cert?.issuer),
-                  name: S(cert?.name),
-                  validityDate: S(cert?.validityDate),
-                }))
-              : [],
-          }));
-        }
-      }
-    } catch {}
+  const parsed = await callAzureOpenAiJson(
+    "Return strict JSON with { sections: [{ category, profileDescription, relevantExperience, requirementLink, relevantCertifications: [{ issuer, name, validityDate }] }] }. You are filling a formal non-key personnel capability matrix. Use only facts present in the supplied CV/editor data. For each requested category, infer the most relevant experience, skills, certifications, education, and languages. profileDescription should be concise but substantive. relevantExperience should mention concrete roles, employers, scope, dates, and notable responsibilities where available.",
+    {
+      categories,
+      candidate: {
+        ...buildCandidateFactSheet(data),
+        title: c.title,
+        summary,
+        skills,
+        experiences: exps,
+        certifications: certs,
+        education,
+        languages,
+      },
+    }
+  );
+  const sections = Array.isArray(parsed?.sections) ? parsed.sections : [];
+  if (sections.length === categories.length) {
+    return sections.map((section: any, index: number) => ({
+      category: categories[index],
+      profileDescription: S(section?.profileDescription || summary),
+      relevantExperience: S(section?.relevantExperience),
+      requirementLink: S(section?.requirementLink),
+      relevantCertifications: Array.isArray(section?.relevantCertifications)
+        ? section.relevantCertifications.slice(0, 3).map((cert: any) => ({
+            issuer: S(cert?.issuer),
+            name: S(cert?.name),
+            validityDate: S(cert?.validityDate),
+          }))
+        : [],
+    }));
   }
 
   return categories.map((category, index) => {
-    const exp = exps[index] || exps[0] || {};
-    const experienceLine = [
-      S(exp?.title || exp?.role),
-      S(exp?.company || exp?.employer),
-      [S(exp?.start), S(exp?.end)].filter(Boolean).join(" – "),
-    ]
+    const keywordMap: Record<string, string[]> = {
+      "Enterprise Architecture": ["architecture", "enterprise", "strategy", "transformation"],
+      "Domain Specific Enterprise Architecture": ["domain", "solution", "application", "platform", "cloud", "data"],
+      "Project Management": ["project", "delivery", "manager", "coordination", "stakeholder"],
+      "Project and Programme Strategy and Methods Design": ["programme", "method", "governance", "planning", "strategy"],
+      "Business Analysis": ["analysis", "business", "requirements", "process", "workshop"],
+      "Communication": ["communication", "presentation", "stakeholder", "client", "reporting"],
+      "Demand Management and IT Investment": ["demand", "portfolio", "investment", "roadmap", "budget"],
+    };
+    const keywords = keywordMap[category] || [];
+    const scored: Array<{ exp: any; score: number }> = exps
+      .map((exp: any) => {
+        const text = [
+          S(exp?.title || exp?.role),
+          S(exp?.company || exp?.employer),
+          S(exp?.description || exp?.summary),
+          ...A(exp?.bullets).map((b: any) => S(typeof b === "string" ? b : b?.text)),
+        ]
+          .join(" ")
+          .toLowerCase();
+        const score = keywords.reduce((acc, kw) => acc + (text.includes(kw) ? 1 : 0), 0);
+        return { exp, score };
+      })
+      .sort((a: { exp: any; score: number }, b: { exp: any; score: number }) => b.score - a.score);
+    const chosen = scored.filter((x) => x.score > 0).slice(0, 2).map((x) => x.exp);
+    const fallbackExp = chosen.length ? chosen : exps.slice(index, index + 2).length ? exps.slice(index, index + 2) : exps.slice(0, 2);
+    const experienceLine = fallbackExp
+      .map((exp: any) =>
+        [
+          S(exp?.title || exp?.role),
+          S(exp?.company || exp?.employer),
+          [S(exp?.start), S(exp?.end)].filter(Boolean).join(" – "),
+          firstNonEmpty(exp?.description, exp?.summary),
+        ]
+          .filter(Boolean)
+          .join(" | ")
+      )
       .filter(Boolean)
-      .join(" | ");
+      .join("\n");
     return {
       category,
-      profileDescription: summary || [S(c.title), skills.slice(0, 6).join(", ")].filter(Boolean).join(" – "),
+      profileDescription:
+        summary ||
+        [S(c.title), skills.slice(0, 10).join(", "), languages.map((l: any) => S(l?.name || l?.language)).filter(Boolean).join(", ")]
+          .filter(Boolean)
+          .join(" – "),
       relevantExperience: experienceLine,
       requirementLink: "",
-      relevantCertifications: certs.slice(0, 2),
+      relevantCertifications: certs.slice(0, 3),
     };
   });
 }
@@ -308,13 +545,16 @@ export async function buildEuropeanParliamentTemplateDocx(data: CvData) {
   const zip = await JSZip.loadAsync(bytes);
   let xml = await zip.file("word/document.xml")!.async("string");
 
-  const ep = toEpFormData(data) as any;
+  const baseEp = toEpFormData(data) as any;
+  const ep = mergeEpData(baseEp, await buildEuropeanParliamentEnrichment(data, baseEp), data);
   const langs = getLanguages(data);
-  const trainingRows = Array.isArray(ep.trainings) ? ep.trainings.slice(0, 2) : [];
+  const trainingRows = Array.isArray(ep.trainings) ? ep.trainings : [];
   const softwareRows = Array.isArray(ep.software_expertise)
-    ? ep.software_expertise.slice(0, 2)
+    ? ep.software_expertise
     : [];
-  const work = Array.isArray(ep.work_experience_blocks) ? ep.work_experience_blocks[0] || {} : {};
+  const workBlocks = Array.isArray(ep.work_experience_blocks) && ep.work_experience_blocks.length
+    ? ep.work_experience_blocks
+    : [{}];
 
   let tables = getTopLevelTables(xml).map((b) => b.text);
   if (tables.length < 5) {
@@ -360,7 +600,7 @@ export async function buildEuropeanParliamentTemplateDocx(data: CvData) {
   let t2 = tables[1];
   t2 = setCellLinesInTable(t2, 0, 0, [
     "Summary (use this area to briefly indicate the major facts which should be known about this employee):",
-    S(ep.summary),
+    S(ep.summary || ep.specialised_expertise),
   ]);
   tables[1] = t2;
 
@@ -392,37 +632,20 @@ export async function buildEuropeanParliamentTemplateDocx(data: CvData) {
   );
   tables[3] = t4;
 
-  let t5 = tables[4];
-  t5 = setCellLinesInTable(t5, 1, 1, [S(work?.project_name)]);
-  t5 = setCellLinesInTable(t5, 2, 1, [S(work?.employer)]);
-  t5 = setCellLinesInTable(
-    t5,
-    3,
-    1,
-    [`Start (dd/mm/yyyy): ${S(work?.dates).split(" – ")[0] || ""}   End: (dd/mm/yyyy): ${S(work?.dates).split(" – ")[1] || ""}   Effective number of man-days worked on the project: ${S(work?.man_days)}`]
-  );
-  t5 = setCellLinesInTable(t5, 4, 1, [S(work?.client)]);
-  t5 = setCellLinesInTable(t5, 5, 1, [S(work?.project_size)]);
-  t5 = setCellLinesInTable(t5, 6, 0, ["Project description:", S(work?.project_description)]);
-  t5 = setCellLinesInTable(
-    t5,
-    7,
-    0,
-    ["Employee’s roles & responsibilities in the project:", ...(Array.isArray(work?.roles_responsibilities) ? work.roles_responsibilities.map(S) : [])]
-  );
-  t5 = setCellLinesInTable(
-    t5,
-    8,
-    0,
-    ["Technologies and methodologies used by the employee in the project:", ...(Array.isArray(work?.technologies) ? work.technologies.map(S) : [])]
-  );
-  tables[4] = t5;
+  const workTableTemplate = tables[4];
+  const workTablesXml = workBlocks
+    .map((work: EpWorkBlock, index: number) => {
+      const filled = sanitizeGeneratedWorkTableXml(fillEpWorkTable(workTableTemplate, work));
+      return index === 0 ? filled : `<w:p><w:r/></w:p>${filled}`;
+    })
+    .join("");
+  tables[4] = workTablesXml;
 
   let currentXml = xml;
   tables.forEach((table, index) => {
     currentXml = replaceDirectBlockAt(currentXml, "w:tbl", index, table);
   });
-  zip.file("word/document.xml", currentXml);
+  zip.file("word/document.xml", sanitizeFinalDocumentXml(currentXml));
   return (await zip.generateAsync({ type: "nodebuffer" })) as Buffer;
 }
 
