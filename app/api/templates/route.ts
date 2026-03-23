@@ -13,7 +13,10 @@ type TemplateId =
   | "docx-kyndryl"
   | "docx-europass"
   | "docx-europass2"
-  | "pptx-kyndryl-sm";
+  | "docx-ep-template"
+  | "docx-non-key-personnel"
+  | "pptx-kyndryl-sm"
+  | "pptx-kyndryl-sm-anon";
 
 type TemplateEntry = {
   id: TemplateId;          // <- used by the UI
@@ -125,9 +128,47 @@ const templates: TemplateEntry[] = [
     },
   },
   {
+    id: "docx-ep-template",
+    key: "docx-ep-template",
+    label: "European Parliament Template (DOCX)",
+    kind: "docx",
+    ext: "docx",
+    previewable: false,
+    export: {
+      path: "/api/export/docx",
+      method: "POST",
+      template: "docx-ep-template",
+    },
+  },
+  {
+    id: "docx-non-key-personnel",
+    key: "docx-non-key-personnel",
+    label: "Non-key Personnel Table (DOCX)",
+    kind: "docx",
+    ext: "docx",
+    previewable: false,
+    export: {
+      path: "/api/export/docx",
+      method: "POST",
+      template: "docx-non-key-personnel",
+    },
+  },
+  {
     id: "pptx-kyndryl-sm",
     key: "pptx-kyndryl-sm",
     label: "Kyndryl Slide Master (PPTX)",
+    kind: "pptx",
+    ext: "pptx",
+    previewable: false,
+    export: {
+      path: "/api/export/pptx",
+      method: "POST",
+    },
+  },
+  {
+    id: "pptx-kyndryl-sm-anon",
+    key: "pptx-kyndryl-sm-anon",
+    label: "Kyndryl Slide Master (PPTX, Anonymized)",
     kind: "pptx",
     ext: "pptx",
     previewable: false,

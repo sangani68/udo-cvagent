@@ -59,6 +59,7 @@ const styles = StyleSheet.create({
   },
   certRow: {
     flexDirection: "row",
+    width: "100%",
   },
   certHeaderCell: {
     paddingVertical: 4,
@@ -87,10 +88,10 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: "#111111",
   },
-  certColName: { width: "38%" },
-  certColIssuer: { width: "32%" },
-  certColStart: { width: "15%" },
-  certColEnd: { width: "15%" },
+  certColName: { width: "38%", flexShrink: 0 },
+  certColIssuer: { width: "32%", flexShrink: 0 },
+  certColStart: { width: "15%", flexShrink: 0 },
+  certColEnd: { width: "15%", flexShrink: 0, borderRightWidth: 0 },
 });
 
 function getExperiences(c: any): any[] {
@@ -115,6 +116,9 @@ function normalizeLines(bullets: any[]): string[] {
     .filter(Boolean)
     .slice(0, 6);
 }
+function getLanguages(c: any): any[] {
+  return Array.isArray(c?.languages) ? c.languages : [];
+}
 
 export default function KyndrylPDF({ data }: { data: CvData }) {
   const c = (data?.candidate ?? {}) as CvData["candidate"] & {
@@ -132,6 +136,7 @@ export default function KyndrylPDF({ data }: { data: CvData }) {
     ? (c as any).certificates
     : [];
   const certRows = certs.length ? certs : [{}];
+  const langs = getLanguages(c);
 
   return (
     <Document>
@@ -218,7 +223,7 @@ export default function KyndrylPDF({ data }: { data: CvData }) {
         <View style={styles.section}>
           <Text style={styles.h1}>Certifications/Trainings</Text>
           <View style={styles.certTable}>
-            <View style={styles.certRow}>
+            <View style={styles.certRow} wrap={false}>
               <View style={[styles.certHeaderCell, styles.certColName]}>
                 <Text style={styles.certHeaderText}>Certification Name</Text>
               </View>
@@ -234,7 +239,7 @@ export default function KyndrylPDF({ data }: { data: CvData }) {
             </View>
 
             {certRows.map((cert: any, i: number) => (
-              <View key={i} style={styles.certRow}>
+              <View key={i} style={styles.certRow} wrap={false}>
                 <View style={[styles.certCell, styles.certColName]}>
                   <Text style={styles.certCellText}>
                     {s(cert.name || cert.title || "") || " "}
@@ -259,6 +264,22 @@ export default function KyndrylPDF({ data }: { data: CvData }) {
             ))}
           </View>
         </View>
+
+        {langs.length ? (
+          <View style={styles.section}>
+            <Text style={styles.h1}>Languages</Text>
+            <Text style={styles.breakable}>
+              {langs
+                .map((l: any) => {
+                  const name = s(l?.name || l?.language);
+                  const level = s(l?.levelText || l?.level);
+                  return level ? `${name} (${level})` : name;
+                })
+                .filter(Boolean)
+                .join(" · ")}
+            </Text>
+          </View>
+        ) : null}
 
         {Array.isArray(c.skills) && c.skills.length ? (
           <View style={styles.section}>

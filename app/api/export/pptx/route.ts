@@ -9,6 +9,7 @@ import { buildKyndrylSMView } from "@/lib/kyndryl-sm";
 import { makeKyndrylSM } from "@/lib/pptx/KyndrylSM";
 import { uploadToCvkb } from "@/lib/azure";
 import { buildExportFilename } from "@/lib/export-utils";
+import { anonymizeKyndrylSMView } from "@/lib/workerProfiles";
 
 type Payload = {
   data?: CVJson;
@@ -46,12 +47,14 @@ export async function POST(req: NextRequest) {
 
     const { data } = await buildViewData(viewBody);
 
-    const view = await buildKyndrylSMView(data, targetLocale);
+    const baseView = await buildKyndrylSMView(data, targetLocale);
+    const anonymized = templateId === "pptx-kyndryl-sm-anon";
+    const view = anonymized ? anonymizeKyndrylSMView(baseView) : baseView;
     const bytes = (await makeKyndrylSM(view)) as Buffer;
 
     const filename = buildExportFilename(
-      "KyndrylSM",
-      data?.candidate?.name || "Candidate",
+      anonymized ? "KyndrylSM_Anonymized" : "KyndrylSM",
+      anonymized ? "AnonymousProfile" : data?.candidate?.name || "Candidate",
       "pptx"
     );
 

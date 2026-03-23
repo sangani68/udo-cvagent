@@ -55,7 +55,10 @@ type TemplateId =
   | "docx-kyndryl"
   | "docx-europass"
   | "docx-europass2"
-  | "pptx-kyndryl-sm";
+  | "docx-ep-template"
+  | "docx-non-key-personnel"
+  | "pptx-kyndryl-sm"
+  | "pptx-kyndryl-sm-anon";
 
 const DEFAULT_TEMPLATE: TemplateId = "pdf-kyndryl";
 
@@ -70,7 +73,13 @@ const TEMPLATE_META: Record<
   "docx-kyndryl": { kind: "docx", label: "Kyndryl DOCX" },
   "docx-europass": { kind: "docx", label: "Europass DOCX" },
   "docx-europass2": { kind: "docx", label: "Europass 2 DOCX" },
+  "docx-ep-template": { kind: "docx", label: "European Parliament Template DOCX" },
+  "docx-non-key-personnel": { kind: "docx", label: "Non-key Personnel Table DOCX" },
   "pptx-kyndryl-sm": { kind: "pptx", label: "Kyndryl SM PPTX" },
+  "pptx-kyndryl-sm-anon": {
+    kind: "pptx",
+    label: "Kyndryl SM PPTX (Anonymized)",
+  },
 };
 
 /* ─────────────────────────────────────────────────────────────
@@ -119,17 +128,28 @@ export default function Page() {
   async function handleUseThisCV(payload: any) {
     try {
       setBusy(true);
-      const res = await fetch("/api/convert-to-cvjson", {
+      let res = await fetch("/api/resolve-cv", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const json = await res.json().catch(() => ({}));
+      let json = await res.json().catch(() => ({}));
+
       if (!res.ok || json?.ok === false) {
-        const msg =
-          json?.error || `Failed to convert to CVJson (HTTP ${res.status})`;
-        throw new Error(msg);
+        // Fallback for cases where the KB does not yet have enough evidence.
+        res = await fetch("/api/convert-to-cvjson", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        json = await res.json().catch(() => ({}));
+        if (!res.ok || json?.ok === false) {
+          const msg =
+            json?.error || `Failed to convert to CVJson (HTTP ${res.status})`;
+          throw new Error(msg);
+        }
       }
+
       const maybe = json.cv ?? json.data ?? json.result ?? json;
       const rawOut: any =
         maybe && typeof maybe === "object" ? maybe.cv ?? maybe : maybe;
@@ -207,7 +227,10 @@ export default function Page() {
         template === "docx-kyndryl" ||
         template === "docx-europass" ||
         template === "docx-europass2" ||
-        template === "pptx-kyndryl-sm"
+        template === "docx-ep-template" ||
+        template === "docx-non-key-personnel" ||
+        template === "pptx-kyndryl-sm" ||
+        template === "pptx-kyndryl-sm-anon"
       ) {
         const html = await res.text().catch(() => "");
         const page = html?.trim()

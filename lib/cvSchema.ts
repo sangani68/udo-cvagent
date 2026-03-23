@@ -41,7 +41,19 @@ export type SimpleItem = {
 };
 
 export type CVJson = {
-  meta?: { locale?: string; source?: string };
+  meta?: {
+    locale?: string;
+    source?: string;
+    visibility?: {
+      profile?: boolean;
+      contacts?: boolean;
+      skills?: boolean;
+      languages?: boolean;
+      experience?: boolean;
+      education?: boolean;
+      certifications?: boolean;
+    };
+  };
   candidate: {
     name: string;
     title?: string;
@@ -157,8 +169,10 @@ export function migrateCvShape(input: any): CVJson {
   const meta = {
     locale: asStr(input?.meta?.locale || "en"),
     source: asStr(input?.meta?.source || ""),
+    visibility: input?.meta?.visibility || undefined,
   };
   if (!meta.source) delete (meta as any).source;
+  if (!meta.visibility || typeof meta.visibility !== "object") delete (meta as any).visibility;
 
   const cv: CVJson = {
     meta,

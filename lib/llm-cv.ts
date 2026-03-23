@@ -12,13 +12,15 @@ Return STRICT JSON only in this shape:
     "skills": string[],
     "experience": [{ "employer"?: string, "role"?: string, "start"?: string, "end"?: string, "location"?: string, "bullets": [{ "text": string }] }],
     "education": [{ "degree"?: string, "school"?: string, "fieldOfStudy"?: string, "eqfLevel"?: string, "start"?: string, "end"?: string, "location"?: string }],
-    "languages": [{ "name": string, "level"?: string }]
+    "languages": [{ "name": string, "level"?: string }],
+    "certifications"?: [{ "name"?: string, "issuer"?: string, "start"?: string, "end"?: string, "date"?: string, "url"?: string }]
   },
   "_meta"?: { "confidence"?: number, "gaps"?: string[] }
 }
 Rules:
 - Do not invent facts; extract only from provided text.
 - Bullets MUST be objects: { "text": "..." }.
+- Capture certifications/trainings/licenses when present.
 - Normalize phone/email/LinkedIn if present.
 - Put languages at the end.
 - Include _meta.confidence (0..1) and short _meta.gaps notes.`;
@@ -97,6 +99,21 @@ export async function textToCvJson(text: string, opts?: LlmOpts): Promise<LlmCv>
     const t = (typeof b === "string" ? b : b?.text || "").toString().trim();
     return t ? { text: t } : null;
   };
+  const toSimpleItem = (item: any) => {
+    const name = String(
+      item?.name || item?.title || item?.certification || item?.certificate || item?.course || ""
+    ).trim();
+    const issuer = String(
+      item?.issuer || item?.organization || item?.org || item?.company || item?.institute || ""
+    ).trim();
+    const start = String(item?.start || item?.issued || item?.issueDate || "").trim();
+    const end = String(item?.end || item?.expiry || item?.expirationDate || item?.validUntil || "").trim();
+    const date = String(item?.date || "").trim();
+    const url = String(item?.url || item?.link || "").trim();
+    return name || issuer || start || end || date || url
+      ? { name, issuer, start, end, date, url }
+      : null;
+  };
   const fix = (arr: any[], f: (x: any) => any) =>
     Array.isArray(arr) ? arr.map(f).filter(Boolean) : [];
 
@@ -136,6 +153,7 @@ export async function textToCvJson(text: string, opts?: LlmOpts): Promise<LlmCv>
         level: String(l?.level || l?.proficiency || "").trim(),
       })).filter((l: any) => l.name),
     } as any,
+    certificates: fix(c?.certifications || raw?.certifications, toSimpleItem),
     _meta: {
       confidence: clamp(raw?._meta?.confidence ?? estimateConfidence(raw)),
       gaps: Array.isArray(raw?._meta?.gaps) ? raw._meta.gaps.slice(0, 10) : inferGaps(raw),
@@ -149,6 +167,7 @@ function clamp(n: any) {
 }
 function estimateConfidence(raw: any) {
   const c = raw?.candidate ?? {};
+  const rootCerts = raw?.certifications;
   let s = 0,
     t = 0;
   const add = (ok: any, w = 1) => {
@@ -160,6 +179,7 @@ function estimateConfidence(raw: any) {
   add((c?.skills?.length ?? 0) > 2, 1);
   add(!!c?.contacts?.email, 1);
   add((c?.education?.length ?? 0) > 0, 1);
+  add(((c?.certifications?.length ?? rootCerts?.length) || 0) > 0, 1);
   return t ? s / t : 0.5;
 }
 function inferGaps(raw: any) {
@@ -174,5 +194,6 @@ function inferGaps(raw: any) {
       if (!e?.employer && !e?.role) g.push(`weak role header #${i + 1}`);
     });
   if (!c?.skills?.length) g.push("no skills parsed");
+  if (!(c?.certifications?.length || raw?.certifications?.length)) g.push("no certifications parsed");
   return g.slice(0, 10);
 }

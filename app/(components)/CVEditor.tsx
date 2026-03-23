@@ -9,10 +9,36 @@ type Props = {
   onChange: (cv: CVJson) => void;
 };
 
+type VisibilityKey =
+  | "profile"
+  | "contacts"
+  | "skills"
+  | "languages"
+  | "experience"
+  | "education"
+  | "certifications";
+
+const DEFAULT_VISIBILITY: Record<VisibilityKey, boolean> = {
+  profile: true,
+  contacts: true,
+  skills: true,
+  languages: true,
+  experience: true,
+  education: true,
+  certifications: true,
+};
+
 // --- helpers ----------------------------------------------------
 function ensure(cv: CVJson | null): CVJson {
   const base: CVJson = {
-    meta: { locale: cv?.meta?.locale || "en", source: cv?.meta?.source || undefined },
+    meta: {
+      locale: cv?.meta?.locale || "en",
+      source: cv?.meta?.source || undefined,
+      visibility: {
+        ...DEFAULT_VISIBILITY,
+        ...(cv?.meta?.visibility || {}),
+      },
+    },
     candidate: {
       name: cv?.candidate?.name || "",
       title: cv?.candidate?.title || "",
@@ -81,11 +107,52 @@ export function CVEditor({ value, onChange }: Props) {
   }
 
   const c = form.candidate;
+  const visibility = { ...DEFAULT_VISIBILITY, ...(form.meta?.visibility || {}) };
+
+  function toggleSection(section: VisibilityKey, checked: boolean) {
+    update((d) => {
+      d.meta = d.meta || {};
+      d.meta.visibility = {
+        ...DEFAULT_VISIBILITY,
+        ...(d.meta.visibility || {}),
+        [section]: checked,
+      };
+    });
+  }
+
+  function SectionTitle({
+    section,
+    label,
+    helper,
+  }: {
+    section: VisibilityKey;
+    label: string;
+    helper?: string;
+  }) {
+    return (
+      <label className="mb-2 flex items-center justify-between gap-3 text-sm font-medium">
+        <span>{label}</span>
+        <span className="flex items-center gap-2 text-xs font-normal text-gray-600">
+          {helper ? <span>{helper}</span> : null}
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-gray-300"
+            checked={visibility[section]}
+            onChange={(e) => toggleSection(section, e.target.checked)}
+          />
+          <span>Show in preview/export</span>
+        </span>
+      </label>
+    );
+  }
 
   return (
     <div className="space-y-4">
       {/* Candidate core */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div className="md:col-span-2">
+          <SectionTitle section="profile" label="Profile" />
+        </div>
         <label className="text-xs text-gray-600">
           Name
           <input
@@ -123,6 +190,9 @@ export function CVEditor({ value, onChange }: Props) {
 
       {/* Contacts */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div className="md:col-span-2">
+          <SectionTitle section="contacts" label="Contacts" />
+        </div>
         <label className="text-xs text-gray-600">
           Email
           <input
@@ -179,6 +249,7 @@ export function CVEditor({ value, onChange }: Props) {
 
       {/* Skills */}
       <div>
+        <SectionTitle section="skills" label="Skills" />
         <div className="mb-1 text-xs text-gray-600">Skills (comma or new line)</div>
         <textarea
           className="w-full rounded border px-2 py-1"
@@ -190,7 +261,7 @@ export function CVEditor({ value, onChange }: Props) {
 
       {/* Languages (at end, per your requirement) */}
       <div>
-        <div className="mb-2 text-xs text-gray-600">Languages</div>
+        <SectionTitle section="languages" label="Languages" />
         {(c.languages || []).map((l, i) => (
           <div key={i} className="mb-2 grid grid-cols-5 gap-2">
             <input
@@ -227,7 +298,7 @@ export function CVEditor({ value, onChange }: Props) {
 
       {/* Experience (compact editor) */}
       <div>
-        <div className="mb-2 text-sm font-medium">Experience</div>
+        <SectionTitle section="experience" label="Experience" />
         {(form.experience || []).map((e, i) => (
           <div key={i} className="mb-3 rounded border p-2">
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
@@ -306,7 +377,7 @@ export function CVEditor({ value, onChange }: Props) {
 
       {/* Education (compact) */}
       <div>
-        <div className="mb-2 text-sm font-medium">Education</div>
+        <SectionTitle section="education" label="Education" />
         {(form.education || []).map((ed, i) => (
           <div key={i} className="mb-3 grid grid-cols-1 gap-2 md:grid-cols-2">
             <input
@@ -380,7 +451,7 @@ export function CVEditor({ value, onChange }: Props) {
 
       {/* Certifications (compact) */}
       <div>
-        <div className="mb-2 text-sm font-medium">Certifications</div>
+        <SectionTitle section="certifications" label="Certifications" />
         {(form.certificates || []).map((cert, i) => (
           <div key={i} className="mb-3 grid grid-cols-1 gap-2 md:grid-cols-2">
             <input

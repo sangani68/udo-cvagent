@@ -5,6 +5,7 @@ import ReactPDF from "@react-pdf/renderer";
 import { buildViewData } from "@/lib/preview-pipeline";
 import { buildHtmlPreview } from "@/lib/htmlPreview";
 import { buildKyndrylSMHtml, buildKyndrylSMView } from "@/lib/kyndryl-sm";
+import { anonymizeKyndrylSMView } from "@/lib/workerProfiles";
 
 export const runtime = "nodejs";
 
@@ -61,7 +62,9 @@ export async function POST(req: NextRequest) {
       template === "docx-ep" ||
       template === "docx-kyndryl" ||
       template === "docx-europass" ||
-      template === "docx-europass2"
+      template === "docx-europass2" ||
+      template === "docx-ep-template" ||
+      template === "docx-non-key-personnel"
     ) {
       const html = await buildHtmlPreview(data, template);
       return new Response(html, {
@@ -73,8 +76,12 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    if (template === "pptx-kyndryl-sm") {
-      const view = await buildKyndrylSMView(data, locale);
+    if (template === "pptx-kyndryl-sm" || template === "pptx-kyndryl-sm-anon") {
+      const baseView = await buildKyndrylSMView(data, locale);
+      const view =
+        template === "pptx-kyndryl-sm-anon"
+          ? anonymizeKyndrylSMView(baseView)
+          : baseView;
       const html = buildKyndrylSMHtml(view);
       return new Response(html, {
         status: 200,

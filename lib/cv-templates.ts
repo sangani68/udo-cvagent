@@ -7,7 +7,10 @@ export type CvTemplateId =
   | "docx-kyndryl"
   | "docx-europass"
   | "docx-europass2"
-  | "pptx-kyndryl-sm";
+  | "docx-ep-template"
+  | "docx-non-key-personnel"
+  | "pptx-kyndryl-sm"
+  | "pptx-kyndryl-sm-anon";
 
 export type CvTemplate = {
   id: CvTemplateId;
@@ -83,11 +86,37 @@ export const CV_TEMPLATES: CvTemplate[] = [
     payload: { template: "docx-europass2" },
   },
   {
+    id: "docx-ep-template",
+    label: "European Parliament Template (Word)",
+    kind: "docx",
+    brand: "European Parliament",
+    description: "Template-driven European Parliament export using the provided layout.",
+    api: "/api/export/docx",
+    payload: { template: "docx-ep-template" },
+  },
+  {
+    id: "docx-non-key-personnel",
+    label: "Non-key Personnel Table (Word)",
+    kind: "docx",
+    brand: "Kyndryl",
+    description: "Template-driven competency table using the provided layout.",
+    api: "/api/export/docx",
+    payload: { template: "docx-non-key-personnel" },
+  },
+  {
     id: "pptx-kyndryl-sm",
     label: "Kyndryl SM (PowerPoint)",
     kind: "pptx",
     brand: "Kyndryl",
     description: "3-slide summary deck (cover, experience, skills).",
+    api: "/api/export/pptx",
+  },
+  {
+    id: "pptx-kyndryl-sm-anon",
+    label: "Kyndryl SM (PowerPoint, Anonymized)",
+    kind: "pptx",
+    brand: "Kyndryl",
+    description: "Seller-ready slide without employee name or photo.",
     api: "/api/export/pptx",
   },
 ];

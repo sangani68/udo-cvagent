@@ -26,6 +26,10 @@ import { toEpFormData } from "@/lib/ep-docx";
 import { uploadToCvkb } from "@/lib/azure";
 import { buildExportFilename } from "@/lib/export-utils";
 import type { MaskPolicy } from "@/lib/mask";
+import {
+  buildEuropeanParliamentTemplateDocx,
+  buildNonKeyPersonnelTemplateDocx,
+} from "@/lib/docx/customTemplates";
 
 type Body = {
   data?: any;
@@ -34,7 +38,7 @@ type Body = {
   maskPersonal?: boolean;
   maskPolicy?: MaskPolicy;
   template?: string; // "docx-ep" | "docx-kyndryl" | "docx-europass" | "docx-europass2"
-  templateId?: string; // "docx-ep" | "docx-kyndryl" | "docx-europass" | "docx-europass2"
+  templateId?: string; // "docx-ep" | "docx-kyndryl" | "docx-europass" | "docx-europass2" | "docx-ep-template" | "docx-non-key-personnel"
 };
 
 const S = (v: any, fb = "") => (v == null ? fb : String(v).trim() || fb);
@@ -371,6 +375,8 @@ function getLanguages(data: any) {
     ? c.languages
     : Array.isArray(data?.languages)
     ? data.languages
+    : Array.isArray(data?.cv?.languages)
+    ? data.cv.languages
     : [];
 }
 
@@ -855,6 +861,8 @@ export async function POST(req: NextRequest) {
       "docx-kyndryl",
       "docx-europass",
       "docx-europass2",
+      "docx-ep-template",
+      "docx-non-key-personnel",
     ]);
     if (!supported.has(templateId)) {
       return NextResponse.json(
@@ -891,6 +899,30 @@ export async function POST(req: NextRequest) {
     };
 
     const { data, locale } = await buildViewData(viewBody);
+
+    if (templateId === "docx-ep-template" || templateId === "docx-non-key-personnel") {
+      const buffer =
+        templateId === "docx-ep-template"
+          ? await buildEuropeanParliamentTemplateDocx(data)
+          : await buildNonKeyPersonnelTemplateDocx(data);
+      const filename = buildExportFilename(
+        templateId === "docx-ep-template" ? "EP_Template" : "NonKeyPersonnel",
+        data?.candidate?.name || "Candidate",
+        "docx"
+      );
+
+      try {
+        await uploadToCvkb(
+          `exports/${filename}`,
+          buffer,
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        );
+      } catch (e) {
+        console.error("[export/docx] template upload failed:", e);
+      }
+
+      return fileResponse(buffer, filename);
+    }
 
     if (templateId !== "docx-ep") {
       const builders: Record<string, (d: any) => { doc: Document; name: string }> = {

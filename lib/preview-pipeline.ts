@@ -4,6 +4,16 @@ import { migrateCvShape } from "./cvSchema";
 import { toPreviewModel, type CvData } from "./cv-view";
 import type { MaskPolicy } from "./mask";
 
+type Visibility = {
+  profile?: boolean;
+  contacts?: boolean;
+  skills?: boolean;
+  languages?: boolean;
+  experience?: boolean;
+  education?: boolean;
+  certifications?: boolean;
+};
+
 /* ─────────────────────────────
    Mask PII (keep your policy)
    ───────────────────────────── */
@@ -34,6 +44,47 @@ export function maskCv(cv: CVJson, policy: MaskPolicy = EMPTY_POLICY): CVJson {
     c.city = "";
     c.country = "";
   }
+  return out;
+}
+
+function applyVisibility(cv: CVJson): CVJson {
+  const out: CVJson = JSON.parse(JSON.stringify(cv || {}));
+  const visibility: Visibility = out.meta?.visibility || {};
+  const isOn = (key: keyof Visibility) => visibility[key] !== false;
+
+  if (!isOn("profile")) {
+    out.candidate.name = " ";
+    delete out.candidate.title;
+    delete out.candidate.summary;
+    delete out.candidate.location;
+    delete out.candidate.photoDataUrl;
+    delete out.candidate.links;
+  }
+
+  if (!isOn("contacts")) {
+    delete out.candidate.contacts;
+  }
+
+  if (!isOn("skills")) {
+    delete out.candidate.skills;
+  }
+
+  if (!isOn("languages")) {
+    delete out.candidate.languages;
+  }
+
+  if (!isOn("experience")) {
+    delete out.experience;
+  }
+
+  if (!isOn("education")) {
+    delete out.education;
+  }
+
+  if (!isOn("certifications")) {
+    delete out.certificates;
+  }
+
   return out;
 }
 
@@ -210,6 +261,9 @@ export async function buildViewData(opts: {
 
   // 2) mask first (your requirement)
   if (mask) cv = maskCv(cv, maskPolicy);
+
+  // 2b) apply per-section visibility for preview/export only
+  cv = applyVisibility(cv);
 
   // 3) normalize to tolerant view model
   const base = toPreviewModel(cv);

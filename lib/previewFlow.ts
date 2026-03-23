@@ -9,7 +9,10 @@ export type TemplateId =
   | "docx-kyndryl"
   | "docx-europass"
   | "docx-europass2"
-  | "pptx-kyndryl-sm";
+  | "docx-ep-template"
+  | "docx-non-key-personnel"
+  | "pptx-kyndryl-sm"
+  | "pptx-kyndryl-sm-anon";
 
 export type PreviewState =
   | { mode: "pdf"; template: TemplateId; data: CvData }
@@ -27,7 +30,7 @@ export function safeFileBase(s: string) {
 export function chooseExportRoute(tpl: TemplateId) {
   if (tpl.startsWith("pdf")) return "/api/export/pdf";
   if (tpl.startsWith("docx")) return "/api/export/docx";
-  if (tpl === "pptx-kyndryl-sm") return "/api/export/pptx";
+  if (tpl === "pptx-kyndryl-sm" || tpl === "pptx-kyndryl-sm-anon") return "/api/export/pptx";
   return "/api/export/pdf";
 }
 
